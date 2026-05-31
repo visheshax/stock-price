@@ -84,10 +84,10 @@ def train_hybrid_model(df: pd.DataFrame, changepoint_scale: float, seasonality_m
     if len(hybrid_df) < 10:
         raise ValueError("Not enough historical data to compute technical indicators. Please select a longer history or an older ticker.")
     
-    # 5. Train Gradient Boosting
+    # 5. Train Gradient Boosting on Residuals
     features = ['yhat', 'trend', 'yearly', 'MA20_lag1', 'MA50_lag1', 'RSI_lag1'] if use_yearly else ['yhat', 'trend', 'MA20_lag1', 'MA50_lag1', 'RSI_lag1']
     X = hybrid_df[features]
-    y = hybrid_df['y']
+    y_residual = hybrid_df['y'] - hybrid_df['yhat']
     
     m_xgb = HistGradientBoostingRegressor(
         learning_rate=xgb_lr,
@@ -95,7 +95,7 @@ def train_hybrid_model(df: pd.DataFrame, changepoint_scale: float, seasonality_m
         max_iter=100,
         random_state=42
     )
-    m_xgb.fit(X, y)
+    m_xgb.fit(X, y_residual)
     
     return {
         'prophet': m_prophet,
@@ -135,8 +135,8 @@ def predict_hybrid_future(model_dict: dict, df: pd.DataFrame, target_date: str):
     features_cols = ['yhat', 'trend', 'yearly', 'MA20_lag1', 'MA50_lag1', 'RSI_lag1'] if use_yearly else ['yhat', 'trend', 'MA20_lag1', 'MA50_lag1', 'RSI_lag1']
     X_future = future_dates[features_cols]
     
-    hybrid_preds = m_xgb.predict(X_future)
-    future_dates['hybrid_yhat'] = hybrid_preds
+    residual_preds = m_xgb.predict(X_future)
+    future_dates['hybrid_yhat'] = future_dates['yhat'] + residual_preds
     
     prediction_row = future_dates[future_dates['ds'] == target_dt]
     if not prediction_row.empty:
