@@ -67,14 +67,20 @@ def main():
     
     # Hardcode history_years to 10 for institutional use cases
     history_years = 10
-    
-    # Hardcode Trend Flexibility for institutional macro forecasting (Mean Reversion)
-    changepoint_scale = 0.010
-    
+
     # Bottom row of settings
-    setting_col1, setting_col2 = st.columns([2, 1])
+    setting_col1, setting_col2, setting_col3 = st.columns([1.5, 1.5, 1])
     
     with setting_col1:
+        strategy = st.selectbox(
+            "Investment Strategy",
+            ["Value (Mean Reversion)", "Growth (Momentum)"],
+            help="Value: Forces the model to stick to long-term 10-year averages. Growth: Allows the model to extrapolate recent compounding momentum."
+        )
+        # Map strategy to changepoint scale
+        changepoint_scale = 0.050 if strategy == "Growth (Momentum)" else 0.010
+
+    with setting_col2:
         default_date = datetime.now().date() + timedelta(days=1)
         max_date = datetime.now().date() + timedelta(days=7300) # 20 years into the future
         target_date_input = st.date_input(
@@ -86,7 +92,7 @@ def main():
             on_change=reset_predict_state
         )
 
-    with setting_col2:
+    with setting_col3:
         st.write("") # Spacing to align button with input
         st.write("")
         predict_btn = st.button("Predict Prices", type="primary", use_container_width=True)
