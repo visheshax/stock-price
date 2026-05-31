@@ -32,6 +32,7 @@ def backtest_hybrid(ticker, years_back=5, test_days=30):
     
     # Train Hybrid model
     model_dict = train_hybrid_model(
+        ticker,
         train, 
         changepoint_scale=0.05, 
         seasonality_mode='multiplicative',
