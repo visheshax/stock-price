@@ -16,7 +16,7 @@ def load_data(ticker, history_years):
 # Use cache_resource for the model since it's an object we shouldn't repeatedly train 
 # if the underlying data and parameters haven't changed.
 @st.cache_resource(show_spinner="Training Hybrid Prophet + Gradient Boosting model...")
-def train_model_v4(ticker, _df, changepoint_scale):
+def train_model_v5(ticker, _df, changepoint_scale):
     # Hardcode standard sensible defaults for the end-user
     return train_hybrid_model(
         _df, 
@@ -63,7 +63,7 @@ def main():
                 df = load_data(ticker, history_years)
                 
                 # 2. Train hybrid model
-                model_dict = train_model_v4(ticker, df, changepoint_scale)
+                model_dict = train_model_v5(ticker, df, changepoint_scale)
                 
                 # 3. Predict
                 predicted_price, forecast = predict_hybrid_future(model_dict, df, str(target_date_input))

@@ -138,6 +138,9 @@ def predict_hybrid_future(model_dict: dict, df: pd.DataFrame, target_date: str):
     residual_preds = m_xgb.predict(X_future)
     future_dates['hybrid_yhat'] = future_dates['yhat'] + residual_preds
     
+    # Financial Sanity Check: Stock prices cannot be negative
+    future_dates['hybrid_yhat'] = future_dates['hybrid_yhat'].clip(lower=0.01)
+    
     prediction_row = future_dates[future_dates['ds'] == target_dt]
     if not prediction_row.empty:
         predicted_mean = prediction_row['hybrid_yhat'].values[0]
