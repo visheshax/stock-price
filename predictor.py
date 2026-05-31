@@ -123,22 +123,42 @@ def add_technical_features(df: pd.DataFrame):
     
     return df
 
-def train_hybrid_model(df: pd.DataFrame, changepoint_scale: float, seasonality_mode: str, xgb_lr: float, xgb_depth: int):
+def train_hybrid_model(ticker: str, df: pd.DataFrame, changepoint_scale: float, seasonality_mode: str, xgb_lr: float, xgb_depth: int):
     """Trains a Prophet + Gradient Boosting hybrid model."""
-    # 1. Train Prophet
+    df = df.copy()
+    
+    # Fetch Market Cap to determine institutional support floor
+    try:
+        mc = yf.Ticker(ticker).info.get('marketCap', 0)
+    except:
+        mc = 0
+        
+    # Cap is set generously high to allow upside
+    cap_val = df['y'].max() * 2.5 
+    
+    # Floor logic: Mega/Large Caps (>2B) rarely drop to 0. Support is set at 50% of historical min.
+    if mc > 2_000_000_000:
+        floor_val = df['y'].min() * 0.5
+    else:
+        floor_val = 0.01
+        
+    df['cap'] = cap_val
+    df['floor'] = floor_val
+
+    # 1. Train Prophet with Logistic Growth
     use_yearly = len(df) >= 365 # Dynamic yearly seasonality
     m_prophet = Prophet(
-        growth='linear', 
+        growth='logistic', 
         daily_seasonality=False, 
         weekly_seasonality=False, # FIX: Stock markets are closed on weekends. Prophet freaks out on weekends if this is True.
         yearly_seasonality=use_yearly,
         changepoint_prior_scale=changepoint_scale,
         seasonality_mode=seasonality_mode
     )
-    m_prophet.fit(df[['ds', 'y']])
+    m_prophet.fit(df[['ds', 'y', 'cap', 'floor']])
     
     # 2. Get Prophet predictions for the training set
-    forecast = m_prophet.predict(df[['ds']])
+    forecast = m_prophet.predict(df[['ds', 'cap', 'floor']])
     
     # 3. Add Technical Features
     df_tech = add_technical_features(df)
@@ -167,6 +187,8 @@ def train_hybrid_model(df: pd.DataFrame, changepoint_scale: float, seasonality_m
         'prophet': m_prophet,
         'xgb': m_xgb,
         'use_yearly': use_yearly,
+        'cap': cap_val,
+        'floor': floor_val,
         'last_technical_features': {
             'MA20_lag1': df_tech['MA20'].iloc[-1],
             'MA50_lag1': df_tech['MA50'].iloc[-1],
@@ -175,23 +197,29 @@ def train_hybrid_model(df: pd.DataFrame, changepoint_scale: float, seasonality_m
     }
 
 def predict_hybrid_future(model_dict: dict, df: pd.DataFrame, target_date: str):
-    """Predicts future price using the hybrid model."""
+    """Predicts future prices using the trained hybrid model."""
     m_prophet = model_dict['prophet']
     m_xgb = model_dict['xgb']
+    cap_val = model_dict.get('cap', 1000000.0)
+    floor_val = model_dict.get('floor', 0.01)
+    
+    # 1. Generate future dates
+    target_dt = pd.to_datetime(target_date).tz_localize(None).normalize()
+    last_dt = df['ds'].max()
+    days_ahead = (target_dt - last_dt).days
+    
+    if days_ahead <= 0:
+        return df.iloc[-1]['y'], df
+        
+    future_dates = m_prophet.make_future_dataframe(periods=days_ahead)
+    future_dates['cap'] = cap_val
+    future_dates['floor'] = floor_val
+    
+    # 2. Get Prophet future predictions
+    forecast = m_prophet.predict(future_dates)
+    
+    future_dates = forecast[forecast['ds'] > last_dt].copy()
     tech_features = model_dict['last_technical_features']
-    
-    last_date = df['ds'].max()
-    target_dt = pd.to_datetime(target_date)
-    
-    days_to_predict = (target_dt - last_date).days
-    if days_to_predict < 1:
-        days_to_predict = 1
-
-    # Prophet forecast
-    future = m_prophet.make_future_dataframe(periods=days_to_predict)
-    prophet_fcst = m_prophet.predict(future)
-    
-    future_dates = prophet_fcst[prophet_fcst['ds'] > last_date].copy()
     
     future_dates['MA20_lag1'] = tech_features['MA20_lag1']
     future_dates['MA50_lag1'] = tech_features['MA50_lag1']
