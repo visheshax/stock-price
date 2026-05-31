@@ -75,4 +75,4 @@ def backtest_hybrid(ticker, years_back=5, test_days=30):
     print(f"Baseline MAPE: {baseline_mape:.2f}%")
 
 if __name__ == "__main__":
-    backtest_hybrid("AAPL", years_back=5, test_days=30)
+    backtest_hybrid("RELIANCE.NS", years_back=5, test_days=30)

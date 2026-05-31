@@ -48,18 +48,29 @@ def main():
         )
         
         default_date = datetime.now().date() + timedelta(days=1)
-        target_date_input = st.date_input("Target Date", value=default_date)
+        max_date = datetime.now().date() + timedelta(days=60)
+        target_date_input = st.date_input(
+            "Target Date", 
+            value=default_date, 
+            min_value=default_date, 
+            max_value=max_date,
+            help="Maximum forecast horizon is 60 days. Hybrid models using lagged technical indicators cannot reliably extrapolate beyond this."
+        )
 
         predict_btn = st.button("Predict Price", type="primary")
 
     with col_main:
         if predict_btn:
-            try:
-                # 1. Fetch data
-                df = load_data(ticker, history_years)
-                
-                # 2. Train hybrid model
-                model_dict = train_model_v3(ticker, df, changepoint_scale)
+            # Enforce hard limit just in case
+            if (target_date_input - datetime.now().date()).days > 60:
+                st.error("Error: Target date exceeds the maximum 60-day forecast horizon. Please select a closer date.")
+            else:
+                try:
+                    # 1. Fetch data
+                    df = load_data(ticker, history_years)
+                    
+                    # 2. Train hybrid model
+                    model_dict = train_model_v3(ticker, df, changepoint_scale)
                 
                 # 3. Predict
                 predicted_price, forecast = predict_hybrid_future(model_dict, df, str(target_date_input))
