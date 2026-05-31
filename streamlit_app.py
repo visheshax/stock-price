@@ -194,7 +194,7 @@ def main():
                                     else:
                                         st.success(f"Already crossed **${goal_price:,.2f}** historically or today.")
                                 else:
-                                    st.warning("Not projected to hit this price within the 10-year macro forecast horizon.")
+                                    st.warning("Not projected to hit this price within the 20-year macro forecast horizon.")
 
                     except Exception as e:
                         st.error(f"Error analyzing {ticker}: {str(e)}")
