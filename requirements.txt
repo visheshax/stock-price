@@ -1,2 +1,7 @@
 yfinance
 prophet
+streamlit
+pandas
+altair
+xgboost
+scikit-learn
