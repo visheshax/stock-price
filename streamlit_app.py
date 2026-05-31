@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 from datetime import datetime, timedelta
+import numpy as np
 
 # Import our decoupled hybrid logic
 from predictor import get_stock_data, train_hybrid_model, predict_hybrid_future, search_ticker, get_qualitative_context
@@ -121,7 +122,23 @@ def main():
                             scaling_array = [1.0 + ((adj - 1.0) * (i / steps)) for i in range(steps)]
                             forecast['hybrid_yhat'] = forecast['hybrid_yhat'] * scaling_array
                             
-                        # Recalculate predicted_price for the specific target date AFTER scaling
+                        # Layout Metrics (Grab last actual price first to calculate gap)
+                        last_row = df.iloc[-1]
+                        last_price = last_row['y']
+                        last_date = last_row['ds'].strftime('%Y-%m-%d')
+                        
+                        # --- ANCHOR SMOOTHING (Prevent Day-1 Cliffs) ---
+                        # Calculate the visual gap between the actual last price and the model's theoretical T+1 price
+                        first_pred = forecast['hybrid_yhat'].iloc[0]
+                        gap = last_price - first_pred
+                        
+                        # Exponentially decay this gap over the forecast (half-life of ~10 days) to smoothly merge curves
+                        decay_rate = 0.07 
+                        decay_array = np.exp(-decay_rate * np.arange(len(forecast)))
+                        forecast['hybrid_yhat'] = forecast['hybrid_yhat'] + (gap * decay_array)
+                        # -----------------------------------------------
+
+                        # Recalculate predicted_price for the specific target date AFTER scaling and smoothing
                         target_dt = pd.to_datetime(target_date_input).tz_localize(None).normalize()
                         pred_row = forecast[forecast['ds'] == target_dt]
                         if not pred_row.empty:
@@ -135,14 +152,10 @@ def main():
                         # Qualitative Analyst Block
                         if qual_context.get('news_count', 0) > 0:
                             sentiment_pct = (adj - 1.0) * 100
-                            st.info(f"**🤖 AI Adj: {sentiment_pct:+.1f}%**\\n"
-                                    f"Sentiment: {qual_context['sentiment_score']:+.2f}\\n"
+                            st.info(f"**🤖 AI Adj: {sentiment_pct:+.1f}%**\n"
+                                    f"Sentiment: {qual_context['sentiment_score']:+.2f}\n"
                                     f"Margin: {qual_context['profit_margins']} | Rev: {qual_context['revenue_growth']}")
                         
-                        # Layout Metrics
-                        last_row = df.iloc[-1]
-                        last_price = last_row['y']
-                        last_date = last_row['ds'].strftime('%Y-%m-%d')
                         delta = predicted_price - last_price
                         pct_change = (delta / last_price) * 100
                         
