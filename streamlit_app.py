@@ -73,11 +73,10 @@ def main():
     # Hardcode history_years to 10 for institutional use cases
     history_years = 10
 
-    # Bottom row of settings
     setting_col1, setting_col2 = st.columns([2, 1])
     
-    # Hardcoded Momentum strategy as requested
-    changepoint_scale = 0.050
+    # Hardcoded Macro Growth strategy (0.001) to prevent short-term dip extrapolation
+    changepoint_scale = 0.001
     
     with setting_col1:
         default_date = datetime.now().date() + timedelta(days=1)

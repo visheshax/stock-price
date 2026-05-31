@@ -190,11 +190,18 @@ def train_hybrid_model(ticker: str, df: pd.DataFrame, changepoint_scale: float, 
     # Cap is set to 5.0x max to allow aggressive upside compounding without flattening the logistic curve too early
     cap_val = df['y'].max() * 5.0 
     
-    # Floor logic: Mega/Large Caps (>$2B USD) rarely drop to 0. Support is set at 50% of historical min.
-    if mc_usd > 2_000_000_000:
-        floor_val = df['y'].min() * 0.5
+    # Dynamic Macro Support Level (User requested feature to prevent Black Swan death spirals)
+    # Calculate the 1-year (252 trading days) historical low to act as a hard structural support floor
+    if len(df) > 252:
+        support_level = df['y'].tail(252).min() * 0.85 # Allow a maximum 15% black swan shock below the 1-year low
     else:
-        floor_val = 0.01
+        support_level = df['y'].min() * 0.85
+        
+    # Floor logic: Merge dynamic support with mega-cap absolute floors
+    if mc_usd > 2_000_000_000:
+        floor_val = max(support_level, df['y'].min() * 0.5)
+    else:
+        floor_val = max(support_level, 0.01)
         
     df['cap'] = cap_val
     df['floor'] = floor_val
