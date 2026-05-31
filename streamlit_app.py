@@ -15,13 +15,20 @@ def load_data(ticker, history_years):
 
 # Use cache_resource for the model since it's an object we shouldn't repeatedly train 
 # if the underlying data and parameters haven't changed.
-@st.cache_resource(show_spinner="Training Hybrid Prophet + XGBoost model...")
-def train_model(_df, changepoint_scale, seasonality_mode, xgb_lr, xgb_depth):
-    return train_hybrid_model(_df, changepoint_scale, seasonality_mode, xgb_lr, xgb_depth)
+@st.cache_resource(show_spinner="Training Hybrid Prophet + Gradient Boosting model...")
+def train_model(_df, changepoint_scale):
+    # Hardcode standard sensible defaults for the end-user
+    return train_hybrid_model(
+        _df, 
+        changepoint_scale=changepoint_scale, 
+        seasonality_mode="multiplicative", 
+        xgb_lr=0.05, 
+        xgb_depth=3
+    )
 
 def main():
-    st.title("📈 Hybrid Stock Price Predictor (Prophet + XGBoost)")
-    st.markdown("Forecasting stock prices using Facebook Prophet for macro-trends and XGBoost for micro-volatility based on technical indicators.")
+    st.title("📈 Hybrid Stock Price Predictor")
+    st.markdown("Forecasting stock prices using Facebook Prophet for macro-trends and Gradient Boosting for micro-volatility.")
     
     col_config, col_main = st.columns([1, 3])
 
@@ -35,22 +42,9 @@ def main():
             help="More history helps Prophet understand long-term cycles."
         )
         
-        st.subheader("Prophet Hyperparameters")
+        st.subheader("Model Hyperparameters")
         changepoint_scale = st.slider(
             "Trend Flexibility", min_value=0.001, max_value=0.5, value=0.05, step=0.001, format="%.3f"
-        )
-        seasonality_mode = st.selectbox(
-            "Seasonality Mode", options=["additive", "multiplicative"], index=1
-        )
-        
-        st.subheader("XGBoost Hyperparameters")
-        xgb_lr = st.slider(
-            "Learning Rate", min_value=0.01, max_value=0.5, value=0.05, step=0.01,
-            help="Lower values make the model more robust but slower to learn."
-        )
-        xgb_depth = st.slider(
-            "Max Depth", min_value=1, max_value=10, value=3,
-            help="Maximum depth of the trees. High values can lead to overfitting."
         )
         
         default_date = datetime.now().date() + timedelta(days=1)
@@ -65,7 +59,7 @@ def main():
                 df = load_data(ticker, history_years)
                 
                 # 2. Train hybrid model
-                model_dict = train_model(df, changepoint_scale, seasonality_mode, xgb_lr, xgb_depth)
+                model_dict = train_model(df, changepoint_scale)
                 
                 # 3. Predict
                 predicted_price, forecast = predict_hybrid_future(model_dict, df, str(target_date_input))
