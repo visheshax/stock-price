@@ -4,7 +4,7 @@ import altair as alt
 from datetime import datetime, timedelta
 
 # Import our decoupled hybrid logic
-from predictor import get_stock_data, train_hybrid_model, predict_hybrid_future
+from predictor import get_stock_data, train_hybrid_model, predict_hybrid_future, search_ticker
 
 st.set_page_config(page_title="Hybrid Stock Price Predictor", layout="wide")
 
@@ -12,6 +12,10 @@ st.set_page_config(page_title="Hybrid Stock Price Predictor", layout="wide")
 @st.cache_data(show_spinner="Fetching historical data...")
 def load_data(ticker, history_years):
     return get_stock_data(ticker, history_years)
+
+@st.cache_data(show_spinner=False)
+def get_search_results(query):
+    return search_ticker(query)
 
 # Use cache_resource for the model since it's an object we shouldn't repeatedly train 
 # if the underlying data and parameters haven't changed.
@@ -34,7 +38,15 @@ def main():
 
     with col_config:
         st.header("Model Settings")
-        ticker = st.text_input("Stock Ticker", value="AAPL")
+        search_query = st.text_input("Search Company or Ticker", value="Apple", help="Type a company name (e.g. 'Reliance') and press Enter to search.")
+        
+        # Run search
+        options = get_search_results(search_query) if search_query else {}
+        if not options:
+            options = {search_query: search_query} # fallback to raw input
+            
+        selected_label = st.selectbox("Select Stock", options=list(options.keys()))
+        ticker = options[selected_label]
         
         # Hardcode history_years to 10 for institutional use cases
         history_years = 10

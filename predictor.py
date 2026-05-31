@@ -33,6 +33,20 @@ def get_stock_data(ticker: str, history_years: int):
     df['ds'] = pd.to_datetime(df['ds']).dt.tz_localize(None).dt.normalize()
     return df
 
+def search_ticker(query: str, max_results: int = 5):
+    """Searches Yahoo Finance for a company name and returns a dict mapping display names to symbols."""
+    try:
+        search_results = yf.Search(query, max_results=max_results).quotes
+        options = {}
+        for q in search_results:
+            if 'symbol' in q and 'shortname' in q:
+                exch = q.get('exchange', 'Unknown')
+                label = f"{q['shortname']} ({q['symbol']}) - {exch}"
+                options[label] = q['symbol']
+        return options
+    except Exception:
+        return {}
+
 def add_technical_features(df: pd.DataFrame):
     """Calculates technical indicators manually to avoid dependencies."""
     df = df.copy()
