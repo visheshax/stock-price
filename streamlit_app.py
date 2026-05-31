@@ -58,7 +58,8 @@ def main():
         
         st.subheader("Model Hyperparameters")
         changepoint_scale = st.slider(
-            "Trend Flexibility", min_value=0.001, max_value=0.5, value=0.05, step=0.001, format="%.3f"
+            "Trend Flexibility", min_value=0.001, max_value=0.5, value=0.010, step=0.005, format="%.3f",
+            help="Lower values force the model to respect the 10-year macro trend (Mean Reversion). Higher values make it overfit to recent short-term crashes."
         )
         
         default_date = datetime.now().date() + timedelta(days=1)
