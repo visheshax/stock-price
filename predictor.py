@@ -127,17 +127,31 @@ def train_hybrid_model(ticker: str, df: pd.DataFrame, changepoint_scale: float, 
     """Trains a Prophet + Gradient Boosting hybrid model."""
     df = df.copy()
     
-    # Fetch Market Cap to determine institutional support floor
+    # Fetch Market Cap and normalize to USD to avoid local currency bias
     try:
-        mc = yf.Ticker(ticker).info.get('marketCap', 0)
+        info = yf.Ticker(ticker).info
+        mc = info.get('marketCap', 0)
+        currency = info.get('currency', 'USD')
+        
+        # Convert non-USD market caps to USD using live Forex rates
+        if currency != 'USD' and mc > 0:
+            fx_ticker = f"{currency}USD=X"
+            fx_history = yf.Ticker(fx_ticker).history(period="1d")
+            if not fx_history.empty:
+                fx_rate = fx_history['Close'].iloc[-1]
+                mc_usd = mc * fx_rate
+            else:
+                mc_usd = 0
+        else:
+            mc_usd = mc
     except:
-        mc = 0
+        mc_usd = 0
         
     # Cap is set generously high to allow upside
     cap_val = df['y'].max() * 2.5 
     
-    # Floor logic: Mega/Large Caps (>2B) rarely drop to 0. Support is set at 50% of historical min.
-    if mc > 2_000_000_000:
+    # Floor logic: Mega/Large Caps (>$2B USD) rarely drop to 0. Support is set at 50% of historical min.
+    if mc_usd > 2_000_000_000:
         floor_val = df['y'].min() * 0.5
     else:
         floor_val = 0.01
@@ -155,6 +169,28 @@ def train_hybrid_model(ticker: str, df: pd.DataFrame, changepoint_scale: float, 
         changepoint_prior_scale=changepoint_scale,
         seasonality_mode=seasonality_mode
     )
+    
+    # De-Bias Calendar: Inject localized market holidays based on ticker suffix
+    if '.' in ticker:
+        suffix = ticker.split('.')[-1].upper()
+        country_map = {
+            'NS': 'IN', 'BO': 'IN', # India
+            'L': 'GB', 'IL': 'GB', # UK
+            'F': 'DE', 'MU': 'DE', # Germany
+            'TO': 'CA', # Canada
+            'AX': 'AU', # Australia
+            'HK': 'HK', # Hong Kong
+            'T': 'JP', # Japan
+            'PA': 'FR', # France
+            'MI': 'IT' # Italy
+        }
+        country_code = country_map.get(suffix)
+        if country_code:
+            m_prophet.add_country_holidays(country_name=country_code)
+    else:
+        # Standard US tickers have no suffix
+        m_prophet.add_country_holidays(country_name='US')
+        
     m_prophet.fit(df[['ds', 'y', 'cap', 'floor']])
     
     # 2. Get Prophet predictions for the training set
