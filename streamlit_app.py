@@ -39,19 +39,25 @@ def main():
     st.title("📈 Hybrid Stock Price Predictor")
     st.markdown("Forecasting stock prices using Facebook Prophet for macro-trends and Gradient Boosting for micro-volatility.")
     
-    col_config, col_main = st.columns([1, 3])
+    col_config, col_main = st.columns([1, 4])
 
     with col_config:
-        st.header("Model Settings")
-        search_query = st.text_input("Search Company or Ticker", value="Apple", help="Type a company name (e.g. 'Reliance') and press Enter to search.")
+        st.header("Comparison Settings")
         
-        # Run search
-        options = get_search_results(search_query) if search_query else {}
-        if not options:
-            options = {search_query: search_query} # fallback to raw input
-            
-        selected_label = st.selectbox("Select Stock", options=list(options.keys()))
-        ticker = options[selected_label]
+        tickers_to_compare = []
+        labels_to_compare = []
+        
+        for i in range(1, 4):
+            label = f"Stock {i}" if i == 1 else f"Stock {i} (Optional)"
+            with st.expander(label, expanded=(i==1)):
+                search_query = st.text_input(f"Search Company {i}", key=f"search_{i}")
+                if search_query:
+                    options = get_search_results(search_query)
+                    if not options:
+                        options = {search_query: search_query}
+                    selected_label = st.selectbox(f"Select {i}", options=list(options.keys()), key=f"select_{i}")
+                    tickers_to_compare.append(options[selected_label])
+                    labels_to_compare.append(selected_label.split(' (')[0])
         
         # Hardcode history_years to 10 for institutional use cases
         history_years = 10
@@ -70,81 +76,81 @@ def main():
             help="Forecast horizon up to 10 years for institutional investors."
         )
 
-        predict_btn = st.button("Predict Price", type="primary")
+        predict_btn = st.button("Predict Prices", type="primary", use_container_width=True)
 
     with col_main:
-        if predict_btn:
-            try:
-                # 1. Fetch data
-                df = load_data(ticker, history_years)
-                
-                # 2. Train hybrid model
-                model_dict = train_model_v8(ticker, df, changepoint_scale)
-                
-                # 3. Predict
-                predicted_price, forecast = predict_hybrid_future(model_dict, df, str(target_date_input))
-                
-                # 4. Qualitative Override (Automatic Blend)
-                qual_context = get_context(ticker)
-                adj = qual_context.get('adjustment_factor', 1.0)
-                
-                # Smoothly apply adjustment over the forecast period to avoid visual chart jump
-                steps = len(forecast)
-                if steps > 0:
-                    scaling_array = [1.0 + ((adj - 1.0) * (i / steps)) for i in range(steps)]
-                    forecast['hybrid_yhat'] = forecast['hybrid_yhat'] * scaling_array
-                    predicted_price = forecast.iloc[-1]['hybrid_yhat']
-                
-                st.success("Analysis Complete")
-                
-                # Qualitative Analyst Block
-                if qual_context.get('news_count', 0) > 0:
-                    sentiment_pct = (adj - 1.0) * 100
-                    st.info(f"**🤖 Automatic Contextual Adjustment: {sentiment_pct:+.1f}%** applied to base forecast.\\n"
-                            f"**News Sentiment Score:** {qual_context['sentiment_score']:+.2f} (based on {qual_context['news_count']} recent headlines) | "
-                            f"**Profit Margin:** {qual_context['profit_margins']} | "
-                            f"**Rev Growth:** {qual_context['revenue_growth']}")
-                
-                # Layout Metrics
-                last_row = df.iloc[-1]
-                last_price = last_row['y']
-                last_date = last_row['ds'].strftime('%Y-%m-%d')
-                delta = predicted_price - last_price
-                pct_change = (delta / last_price) * 100
-                
-                m1, m2, m3 = st.columns(3)
-                m1.metric("Last Close", f"${last_price:.2f}", last_date)
-                m2.metric("Prediction (Blended)", f"${predicted_price:.2f}", f"{target_date_input}")
-                m3.metric("Projected Move", f"{delta:+.2f}", f"{pct_change:+.2f}%")
-                st.divider()
+        if predict_btn and tickers_to_compare:
+            # Create dynamic columns
+            cols = st.columns(len(tickers_to_compare))
+            
+            for i, ticker in enumerate(tickers_to_compare):
+                with cols[i]:
+                    st.subheader(labels_to_compare[i])
+                    try:
+                        # 1. Fetch data
+                        df = load_data(ticker, history_years)
+                        
+                        # 2. Train hybrid model
+                        model_dict = train_model_v8(ticker, df, changepoint_scale)
+                        
+                        # 3. Predict
+                        predicted_price, forecast = predict_hybrid_future(model_dict, df, str(target_date_input))
+                        
+                        # 4. Qualitative Override (Automatic Blend)
+                        qual_context = get_context(ticker)
+                        adj = qual_context.get('adjustment_factor', 1.0)
+                        
+                        # Smoothly apply adjustment
+                        steps = len(forecast)
+                        if steps > 0:
+                            scaling_array = [1.0 + ((adj - 1.0) * (i / steps)) for i in range(steps)]
+                            forecast['hybrid_yhat'] = forecast['hybrid_yhat'] * scaling_array
+                            predicted_price = forecast.iloc[-1]['hybrid_yhat']
+                        
+                        # Qualitative Analyst Block
+                        if qual_context.get('news_count', 0) > 0:
+                            sentiment_pct = (adj - 1.0) * 100
+                            st.info(f"**🤖 AI Adj: {sentiment_pct:+.1f}%**\\n"
+                                    f"Sentiment: {qual_context['sentiment_score']:+.2f}\\n"
+                                    f"Margin: {qual_context['profit_margins']} | Rev: {qual_context['revenue_growth']}")
+                        
+                        # Layout Metrics
+                        last_row = df.iloc[-1]
+                        last_price = last_row['y']
+                        last_date = last_row['ds'].strftime('%Y-%m-%d')
+                        delta = predicted_price - last_price
+                        pct_change = (delta / last_price) * 100
+                        
+                        st.metric("Last Close", f"${last_price:.2f}", last_date)
+                        st.metric("Prediction", f"${predicted_price:.2f}", f"{target_date_input}")
+                        st.metric("Projected Move", f"{delta:+.2f}", f"{pct_change:+.2f}%")
+                        
+                        st.divider()
+                        
+                        # Visualizations
+                        hist_chart_data = df.copy()
+                        hist_chart_data['Type'] = 'Historical'
+                        
+                        future_chart_data = forecast[['ds', 'hybrid_yhat']].copy()
+                        future_chart_data = future_chart_data.rename(columns={'hybrid_yhat': 'y'})
+                        future_chart_data = future_chart_data[future_chart_data['ds'] > df['ds'].max()]
+                        future_chart_data['Type'] = 'Forecast'
+                        
+                        combined = pd.concat([hist_chart_data, future_chart_data])
+                        
+                        # Simple Altair Line Chart
+                        chart = alt.Chart(combined).mark_line().encode(
+                            x=alt.X('ds:T', title=None, axis=alt.Axis(labels=False)), 
+                            y=alt.Y('y:Q', title='Price', scale=alt.Scale(zero=False)),
+                            color=alt.Color('Type:N', scale=alt.Scale(domain=['Historical', 'Forecast'], range=['#1f77b4', '#ff7f0e']), legend=None)
+                        ).properties(
+                            height=300
+                        ).interactive()
+                        
+                        st.altair_chart(chart, use_container_width=True)
 
-                # Visualizations
-                st.subheader("Forecast Overview")
-                
-                # Prepare data for chart
-                hist_chart_data = df.copy()
-                hist_chart_data['Type'] = 'Historical'
-                
-                future_chart_data = forecast[['ds', 'hybrid_yhat']].copy()
-                future_chart_data = future_chart_data.rename(columns={'hybrid_yhat': 'y'})
-                future_chart_data = future_chart_data[future_chart_data['ds'] > df['ds'].max()]
-                future_chart_data['Type'] = 'Forecast'
-                
-                combined = pd.concat([hist_chart_data, future_chart_data])
-                
-                # Simple Altair Line Chart
-                chart = alt.Chart(combined).mark_line().encode(
-                    x=alt.X('ds:T', title='Date'),
-                    y=alt.Y('y:Q', title='Price', scale=alt.Scale(zero=False)),
-                    color=alt.Color('Type:N', scale=alt.Scale(domain=['Historical', 'Forecast'], range=['#1f77b4', '#ff7f0e']))
-                ).properties(
-                    height=400
-                ).interactive()
-                
-                st.altair_chart(chart, use_container_width=True)
-
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
+                    except Exception as e:
+                        st.error(f"Error analyzing {ticker}: {str(e)}")
 
 if __name__ == "__main__":
     main()
