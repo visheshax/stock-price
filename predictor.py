@@ -63,7 +63,7 @@ def train_hybrid_model(df: pd.DataFrame, changepoint_scale: float, seasonality_m
     m_prophet = Prophet(
         growth='linear', 
         daily_seasonality=False, 
-        weekly_seasonality=True,
+        weekly_seasonality=False, # FIX: Stock markets are closed on weekends. Prophet freaks out on weekends if this is True.
         yearly_seasonality=True,
         changepoint_prior_scale=changepoint_scale,
         seasonality_mode=seasonality_mode
@@ -77,11 +77,11 @@ def train_hybrid_model(df: pd.DataFrame, changepoint_scale: float, seasonality_m
     df_tech = add_technical_features(df)
     
     # 4. Merge Prophet output with Technical Features
-    hybrid_df = df_tech.merge(forecast[['ds', 'yhat', 'trend', 'yearly', 'weekly']], on='ds')
+    hybrid_df = df_tech.merge(forecast[['ds', 'yhat', 'trend', 'yearly']], on='ds')
     hybrid_df = hybrid_df.dropna() # Drop rows where MAs/lags are NaN
     
     # 5. Train Gradient Boosting
-    features = ['yhat', 'trend', 'yearly', 'weekly', 'MA20_lag1', 'MA50_lag1', 'RSI_lag1']
+    features = ['yhat', 'trend', 'yearly', 'MA20_lag1', 'MA50_lag1', 'RSI_lag1']
     X = hybrid_df[features]
     y = hybrid_df['y']
     
@@ -126,7 +126,7 @@ def predict_hybrid_future(model_dict: dict, df: pd.DataFrame, target_date: str):
     future_dates['MA50_lag1'] = tech_features['MA50_lag1']
     future_dates['RSI_lag1'] = tech_features['RSI_lag1']
     
-    features_cols = ['yhat', 'trend', 'yearly', 'weekly', 'MA20_lag1', 'MA50_lag1', 'RSI_lag1']
+    features_cols = ['yhat', 'trend', 'yearly', 'MA20_lag1', 'MA50_lag1', 'RSI_lag1']
     X_future = future_dates[features_cols]
     
     hybrid_preds = m_xgb.predict(X_future)
