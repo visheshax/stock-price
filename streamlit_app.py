@@ -113,7 +113,17 @@ def main():
                         if steps > 0:
                             scaling_array = [1.0 + ((adj - 1.0) * (i / steps)) for i in range(steps)]
                             forecast['hybrid_yhat'] = forecast['hybrid_yhat'] * scaling_array
+                            
+                        # Recalculate predicted_price for the specific target date AFTER scaling
+                        target_dt = pd.to_datetime(target_date_input).tz_localize(None).normalize()
+                        pred_row = forecast[forecast['ds'] == target_dt]
+                        if not pred_row.empty:
+                            predicted_price = pred_row['hybrid_yhat'].values[0]
+                        else:
                             predicted_price = forecast.iloc[-1]['hybrid_yhat']
+                            
+                        # Slice the visual forecast so the chart only shows up to the target date
+                        visual_forecast = forecast[forecast['ds'] <= target_dt]
                         
                         # Qualitative Analyst Block
                         if qual_context.get('news_count', 0) > 0:
@@ -139,7 +149,7 @@ def main():
                         hist_chart_data = df.copy()
                         hist_chart_data['Type'] = 'Historical'
                         
-                        future_chart_data = forecast[['ds', 'hybrid_yhat']].copy()
+                        future_chart_data = visual_forecast[['ds', 'hybrid_yhat']].copy()
                         future_chart_data = future_chart_data.rename(columns={'hybrid_yhat': 'y'})
                         future_chart_data = future_chart_data[future_chart_data['ds'] > df['ds'].max()]
                         future_chart_data['Type'] = 'Forecast'
@@ -156,6 +166,26 @@ def main():
                         ).interactive()
                         
                         st.altair_chart(chart, use_container_width=True)
+                        
+                        # Goal Seek Logic
+                        with st.expander("🎯 Goal Seek (Reverse Forecast)"):
+                            st.caption("Calculate the exact date the stock is projected to hit a specific price.")
+                            goal_price = st.number_input("Target Price", value=float(last_price * 1.25), key=f"goal_{ticker}", step=10.0)
+                            
+                            if goal_price > last_price:
+                                hit_rows = forecast[forecast['hybrid_yhat'] >= goal_price]
+                            else:
+                                hit_rows = forecast[forecast['hybrid_yhat'] <= goal_price]
+                                
+                            if not hit_rows.empty:
+                                hit_date = hit_rows['ds'].iloc[0]
+                                days_to_hit = (hit_date - pd.Timestamp.now().normalize()).days
+                                if days_to_hit > 0:
+                                    st.success(f"Projected to hit **${goal_price:,.2f}** on **{hit_date.strftime('%b %d, %Y')}** ({days_to_hit/365:.1f} years).")
+                                else:
+                                    st.success(f"Already crossed **${goal_price:,.2f}** historically or today.")
+                            else:
+                                st.warning("Not projected to hit this price within the 10-year macro forecast horizon.")
 
                     except Exception as e:
                         st.error(f"Error analyzing {ticker}: {str(e)}")
