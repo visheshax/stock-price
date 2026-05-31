@@ -6,7 +6,7 @@ import numpy as np
 
 try:
     # Import our decoupled hybrid logic
-    from predictor import get_stock_data, train_hybrid_model, predict_hybrid_future, search_ticker, get_qualitative_context, get_benchmark_ticker, get_benchmark_forecast
+    from predictor_v2 import get_stock_data, train_hybrid_model, predict_hybrid_future, search_ticker, get_qualitative_context, get_benchmark_ticker, get_benchmark_forecast
 except Exception as e:
     import streamlit as st
     import traceback

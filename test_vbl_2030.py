@@ -4,7 +4,7 @@ import warnings
 import numpy as np
 warnings.filterwarnings('ignore')
 
-from predictor import get_stock_data, train_hybrid_model, predict_hybrid_future, get_qualitative_context, get_benchmark_ticker, get_benchmark_forecast
+from predictor_v2 import get_stock_data, train_hybrid_model, predict_hybrid_future, get_qualitative_context, get_benchmark_ticker, get_benchmark_forecast
 
 ticker = "VBL.NS"
 target_date_str = "2030-06-30"
