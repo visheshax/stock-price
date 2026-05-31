@@ -9,7 +9,7 @@ def get_stock_data(ticker: str, history_years: int):
     days_back = history_years * 365
     start_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
     
-    data = yf.download(ticker, start=start_date, progress=False)
+    data = yf.download(ticker, period=f'{history_years}y', auto_adjust=True)
     if data.empty:
         raise ValueError(f"No data found for ticker {ticker}")
         
@@ -147,8 +147,8 @@ def train_hybrid_model(ticker: str, df: pd.DataFrame, changepoint_scale: float, 
     except:
         mc_usd = 0
         
-    # Cap is set generously high to allow upside
-    cap_val = df['y'].max() * 2.5 
+    # Cap is set to 5.0x max to allow aggressive upside compounding without flattening the logistic curve too early
+    cap_val = df['y'].max() * 5.0 
     
     # Floor logic: Mega/Large Caps (>$2B USD) rarely drop to 0. Support is set at 50% of historical min.
     if mc_usd > 2_000_000_000:
