@@ -36,11 +36,8 @@ def main():
         st.header("Model Settings")
         ticker = st.text_input("Stock Ticker", value="AAPL")
         
-        st.subheader("General Settings")
-        history_years = st.slider(
-            "Years of History (Lookback)", min_value=1, max_value=20, value=10,
-            help="More history helps Prophet understand long-term cycles."
-        )
+        # Hardcode history_years to 10 for institutional use cases
+        history_years = 10
         
         st.subheader("Model Hyperparameters")
         changepoint_scale = st.slider(
