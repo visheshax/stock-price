@@ -39,17 +39,18 @@ def main():
     st.title("📈 Hybrid Stock Price Predictor")
     st.markdown("Forecasting stock prices using Facebook Prophet for macro-trends and Gradient Boosting for micro-volatility.")
     
-    col_config, col_main = st.columns([1, 4])
-
-    with col_config:
-        st.header("Comparison Settings")
-        
-        tickers_to_compare = []
-        labels_to_compare = []
-        
-        for i in range(1, 4):
-            label = f"Stock {i}" if i == 1 else f"Stock {i} (Optional)"
-            with st.expander(label, expanded=(i==1)):
+    st.header("Comparison Settings")
+    
+    tickers_to_compare = []
+    labels_to_compare = []
+    
+    # Create 3 horizontal columns for the stock inputs
+    input_cols = st.columns(3)
+    
+    for i in range(1, 4):
+        label = f"Stock {i}" if i == 1 else f"Stock {i} (Optional)"
+        with input_cols[i-1]:
+            with st.expander(label, expanded=True):
                 search_query = st.text_input(f"Search Company {i}", key=f"search_{i}")
                 if search_query:
                     options = get_search_results(search_query)
@@ -58,28 +59,35 @@ def main():
                     selected_label = st.selectbox(f"Select {i}", options=list(options.keys()), key=f"select_{i}")
                     tickers_to_compare.append(options[selected_label])
                     labels_to_compare.append(selected_label.split(' (')[0])
-        
-        # Hardcode history_years to 10 for institutional use cases
-        history_years = 10
-        
-        st.subheader("Target Horizon")
-        # Hardcode Trend Flexibility for institutional macro forecasting (Mean Reversion)
-        changepoint_scale = 0.010
-        
+    
+    # Hardcode history_years to 10 for institutional use cases
+    history_years = 10
+    
+    # Hardcode Trend Flexibility for institutional macro forecasting (Mean Reversion)
+    changepoint_scale = 0.010
+    
+    # Bottom row of settings
+    setting_col1, setting_col2 = st.columns([2, 1])
+    
+    with setting_col1:
         default_date = datetime.now().date() + timedelta(days=1)
         max_date = datetime.now().date() + timedelta(days=3650) # 10 years into the future
         target_date_input = st.date_input(
-            "Target Date", 
+            "Target Date (Forecast Horizon)", 
             value=default_date, 
             min_value=default_date, 
             max_value=max_date,
             help="Forecast horizon up to 10 years for institutional investors."
         )
 
+    with setting_col2:
+        st.write("") # Spacing to align button with input
+        st.write("")
         predict_btn = st.button("Predict Prices", type="primary", use_container_width=True)
 
-    with col_main:
-        if predict_btn and tickers_to_compare:
+    st.divider()
+
+    if predict_btn and tickers_to_compare:
             # Create dynamic columns
             cols = st.columns(len(tickers_to_compare))
             
