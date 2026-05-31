@@ -40,6 +40,24 @@ except LookupError:
     nltk.download('vader_lexicon', quiet=True)
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
+def get_benchmark_ticker(ticker: str) -> str:
+    """Maps a stock ticker to its regional benchmark index."""
+    if '.' in ticker:
+        suffix = ticker.split('.')[-1].upper()
+        mapping = {
+            'NS': '^NSEI', 'BO': '^BSESN',
+            'L': '^FTSE', 'IL': '^FTSE',
+            'F': '^GDAXI', 'MU': '^GDAXI',
+            'TO': '^GSPTSE',
+            'AX': '^AXJO',
+            'HK': '^HSI',
+            'T': '^N225',
+            'PA': '^FCHI',
+            'MI': 'FTSEMIB.MI'
+        }
+        return mapping.get(suffix, '^GSPC')
+    return '^GSPC'
+
 def search_ticker(query: str, max_results: int = 5):
     """Searches Yahoo Finance for a company name and returns a dict mapping display names to symbols."""
     try:
@@ -99,6 +117,28 @@ def get_qualitative_context(ticker: str):
         
     return context
 
+def get_benchmark_forecast(benchmark_ticker: str, history_years: int, changepoint_scale: float, days_ahead: int = 7300) -> pd.DataFrame:
+    """Trains a Prophet model on the benchmark index and returns its historical+future trend curve."""
+    try:
+        df = get_stock_data(benchmark_ticker, history_years)
+        
+        cap_val = df['y'].max() * 5.0
+        floor_val = df['y'].min() * 0.5
+        df['cap'] = cap_val
+        df['floor'] = floor_val
+        
+        m = Prophet(growth='logistic', changepoint_prior_scale=changepoint_scale, daily_seasonality=False, weekly_seasonality=False)
+        m.fit(df[['ds', 'y', 'cap', 'floor']])
+        
+        future = m.make_future_dataframe(periods=days_ahead)
+        future['cap'] = cap_val
+        future['floor'] = floor_val
+        forecast = m.predict(future)
+        
+        return forecast[['ds', 'yhat']].rename(columns={'yhat': 'benchmark_yhat'})
+    except Exception:
+        return None
+
 def add_technical_features(df: pd.DataFrame):
     """Calculates technical indicators manually to avoid dependencies."""
     df = df.copy()
@@ -123,7 +163,7 @@ def add_technical_features(df: pd.DataFrame):
     
     return df
 
-def train_hybrid_model(ticker: str, df: pd.DataFrame, changepoint_scale: float, seasonality_mode: str, xgb_lr: float, xgb_depth: int):
+def train_hybrid_model(ticker: str, df: pd.DataFrame, changepoint_scale: float, seasonality_mode: str, xgb_lr: float, xgb_depth: int, benchmark_forecast: pd.DataFrame = None):
     """Trains a Prophet + Gradient Boosting hybrid model."""
     df = df.copy()
     
@@ -162,7 +202,7 @@ def train_hybrid_model(ticker: str, df: pd.DataFrame, changepoint_scale: float, 
     # 1. Train Prophet with Logistic Growth
     use_yearly = len(df) >= 365 # Dynamic yearly seasonality
     m_prophet = Prophet(
-        growth='logistic', 
+        growth='logistic',
         daily_seasonality=False, 
         weekly_seasonality=False, # FIX: Stock markets are closed on weekends. Prophet freaks out on weekends if this is True.
         yearly_seasonality=use_yearly,
@@ -191,10 +231,19 @@ def train_hybrid_model(ticker: str, df: pd.DataFrame, changepoint_scale: float, 
         # Standard US tickers have no suffix
         m_prophet.add_country_holidays(country_name='US')
         
-    m_prophet.fit(df[['ds', 'y', 'cap', 'floor']])
+    if benchmark_forecast is not None:
+        df = pd.merge(df, benchmark_forecast, on='ds', how='left')
+        df['benchmark_yhat'] = df['benchmark_yhat'].ffill().bfill()
+        m_prophet.add_regressor('benchmark_yhat')
+        
+    fit_cols = ['ds', 'y', 'cap', 'floor']
+    if benchmark_forecast is not None:
+        fit_cols.append('benchmark_yhat')
+        
+    m_prophet.fit(df[fit_cols])
     
     # 2. Get Prophet predictions for the training set
-    forecast = m_prophet.predict(df[['ds', 'cap', 'floor']])
+    forecast = m_prophet.predict(df[fit_cols])
     
     # 3. Add Technical Features
     df_tech = add_technical_features(df)
@@ -232,7 +281,7 @@ def train_hybrid_model(ticker: str, df: pd.DataFrame, changepoint_scale: float, 
         }
     }
 
-def predict_hybrid_future(model_dict: dict, df: pd.DataFrame, target_date: str):
+def predict_hybrid_future(model_dict: dict, df: pd.DataFrame, target_date: str, benchmark_forecast: pd.DataFrame = None):
     """Predicts future prices using the trained hybrid model."""
     m_prophet = model_dict['prophet']
     m_xgb = model_dict['xgb']
@@ -254,6 +303,10 @@ def predict_hybrid_future(model_dict: dict, df: pd.DataFrame, target_date: str):
     future_dates['cap'] = cap_val
     future_dates['floor'] = floor_val
     
+    if benchmark_forecast is not None:
+        future_dates = pd.merge(future_dates, benchmark_forecast, on='ds', how='left')
+        future_dates['benchmark_yhat'] = future_dates['benchmark_yhat'].ffill().bfill()
+        
     # 2. Get Prophet future predictions
     forecast = m_prophet.predict(future_dates)
     

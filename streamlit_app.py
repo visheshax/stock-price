@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import numpy as np
 
 # Import our decoupled hybrid logic
-from predictor import get_stock_data, train_hybrid_model, predict_hybrid_future, search_ticker, get_qualitative_context
+from predictor import get_stock_data, train_hybrid_model, predict_hybrid_future, search_ticker, get_qualitative_context, get_benchmark_ticker, get_benchmark_forecast
 
 st.set_page_config(page_title="Hybrid Stock Price Predictor", layout="wide")
 
@@ -22,19 +22,15 @@ def get_search_results(query):
 def get_context(ticker):
     return get_qualitative_context(ticker)
 
+@st.cache_resource(show_spinner=False)
+def fetch_benchmark(benchmark_ticker, history_years, changepoint_scale):
+    return get_benchmark_forecast(benchmark_ticker, history_years, changepoint_scale)
+
 # Use cache_resource for the model since it's an object we shouldn't repeatedly train 
 # if the underlying data and parameters haven't changed.
-@st.cache_resource(show_spinner="Training Hybrid Prophet + Gradient Boosting model...")
-def train_model_v8(ticker, _df, changepoint_scale):
-    # Hardcode standard sensible defaults for the end-user
-    return train_hybrid_model(
-        ticker,
-        _df, 
-        changepoint_scale=changepoint_scale, 
-        seasonality_mode="multiplicative", 
-        xgb_lr=0.05, 
-        xgb_depth=3
-    )
+@st.cache_resource(show_spinner="Training advanced hybrid model...")
+def train_model_v8(ticker, _df, changepoint_scale, _benchmark_forecast):
+    return train_hybrid_model(ticker, _df, changepoint_scale, 'additive', 0.1, 3, _benchmark_forecast)
 
 def main():
     # Callback to reset prediction state when settings are changed
@@ -74,7 +70,7 @@ def main():
     with setting_col1:
         strategy = st.selectbox(
             "Investment Strategy",
-            ["Value (Mean Reversion)", "Growth (Momentum)"],
+            ["Growth (Momentum)", "Value (Mean Reversion)"],
             help="Value: Forces the model to stick to long-term 10-year averages. Growth: Allows the model to extrapolate recent compounding momentum."
         )
         # Map strategy to changepoint scale
@@ -112,11 +108,16 @@ def main():
                         # 1. Fetch data
                         df = load_data(ticker, history_years)
                         
+                        # --- Multivariate Benchmark Correlation ---
+                        benchmark_ticker = get_benchmark_ticker(ticker)
+                        benchmark_forecast = fetch_benchmark(benchmark_ticker, history_years, changepoint_scale)
+                        
                         # 2. Train hybrid model
-                        model_dict = train_model_v8(ticker, df, changepoint_scale)
+                        model_dict = train_model_v8(ticker, df, changepoint_scale, benchmark_forecast)
                         
                         # 3. Predict
-                        predicted_price, forecast = predict_hybrid_future(model_dict, df, str(target_date_input))
+                        with st.spinner("Simulating..."):
+                            predicted_price, forecast = predict_hybrid_future(model_dict, df, str(target_date_input), benchmark_forecast)
                         
                         # 4. Qualitative Override (Automatic Blend)
                         qual_context = get_context(ticker)
