@@ -36,6 +36,10 @@ def train_model_v8(ticker, _df, changepoint_scale):
     )
 
 def main():
+    # Callback to reset prediction state when settings are changed
+    def reset_predict_state():
+        st.session_state.predict_clicked = False
+
     st.title("📈 Hybrid Stock Price Predictor")
     st.markdown("Forecasting stock prices using Facebook Prophet for macro-trends and Gradient Boosting for micro-volatility.")
     
@@ -51,12 +55,12 @@ def main():
         label = f"Stock {i}" if i == 1 else f"Stock {i} (Optional)"
         with input_cols[i-1]:
             with st.expander(label, expanded=True):
-                search_query = st.text_input(f"Search Company {i}", key=f"search_{i}")
+                search_query = st.text_input(f"Search Company {i}", key=f"search_{i}", on_change=reset_predict_state)
                 if search_query:
                     options = get_search_results(search_query)
                     if not options:
                         options = {search_query: search_query}
-                    selected_label = st.selectbox(f"Select {i}", options=list(options.keys()), key=f"select_{i}")
+                    selected_label = st.selectbox(f"Select {i}", options=list(options.keys()), key=f"select_{i}", on_change=reset_predict_state)
                     tickers_to_compare.append(options[selected_label])
                     labels_to_compare.append(selected_label.split(' (')[0])
     
@@ -71,13 +75,14 @@ def main():
     
     with setting_col1:
         default_date = datetime.now().date() + timedelta(days=1)
-        max_date = datetime.now().date() + timedelta(days=3650) # 10 years into the future
+        max_date = datetime.now().date() + timedelta(days=7300) # 20 years into the future
         target_date_input = st.date_input(
             "Target Date (Forecast Horizon)", 
             value=default_date, 
             min_value=default_date, 
             max_value=max_date,
-            help="Forecast horizon up to 10 years for institutional investors."
+            help="Forecast horizon up to 20 years for institutional investors.",
+            on_change=reset_predict_state
         )
 
     with setting_col2:
