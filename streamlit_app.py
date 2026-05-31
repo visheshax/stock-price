@@ -56,11 +56,9 @@ def main():
         # Hardcode history_years to 10 for institutional use cases
         history_years = 10
         
-        st.subheader("Model Hyperparameters")
-        changepoint_scale = st.slider(
-            "Trend Flexibility", min_value=0.001, max_value=0.5, value=0.010, step=0.005, format="%.3f",
-            help="Lower values force the model to respect the 10-year macro trend (Mean Reversion). Higher values make it overfit to recent short-term crashes."
-        )
+        st.subheader("Target Horizon")
+        # Hardcode Trend Flexibility for institutional macro forecasting (Mean Reversion)
+        changepoint_scale = 0.010
         
         default_date = datetime.now().date() + timedelta(days=1)
         max_date = datetime.now().date() + timedelta(days=3650) # 10 years into the future
