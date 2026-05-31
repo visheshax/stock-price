@@ -33,6 +33,13 @@ def get_stock_data(ticker: str, history_years: int):
     df['ds'] = pd.to_datetime(df['ds']).dt.tz_localize(None).dt.normalize()
     return df
 
+import nltk
+try:
+    nltk.data.find('sentiment/vader_lexicon.zip')
+except LookupError:
+    nltk.download('vader_lexicon', quiet=True)
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+
 def search_ticker(query: str, max_results: int = 5):
     """Searches Yahoo Finance for a company name and returns a dict mapping display names to symbols."""
     try:
@@ -46,6 +53,51 @@ def search_ticker(query: str, max_results: int = 5):
         return options
     except Exception:
         return {}
+
+def get_qualitative_context(ticker: str):
+    """Fetches news sentiment and fundamental data to calculate a qualitative adjustment factor."""
+    context = {
+        'sentiment_score': 0.0,
+        'profit_margins': 'N/A',
+        'revenue_growth': 'N/A',
+        'adjustment_factor': 1.0,
+        'news_count': 0
+    }
+    
+    try:
+        t = yf.Ticker(ticker)
+        
+        # 1. Fetch Fundamentals
+        info = t.info
+        if info:
+            if 'profitMargins' in info and info['profitMargins']:
+                context['profit_margins'] = f"{info['profitMargins'] * 100:.1f}%"
+            if 'revenueGrowth' in info and info['revenueGrowth']:
+                context['revenue_growth'] = f"{info['revenueGrowth'] * 100:.1f}%"
+                
+        # 2. Fetch News and Calculate Sentiment
+        news = t.news
+        if news:
+            sia = SentimentIntensityAnalyzer()
+            scores = []
+            for article in news:
+                title = article.get('title', '')
+                if title:
+                    scores.append(sia.polarity_scores(title)['compound'])
+            
+            if scores:
+                avg_sentiment = sum(scores) / len(scores)
+                context['sentiment_score'] = avg_sentiment
+                context['news_count'] = len(scores)
+                
+                # Calculate automatic adjustment factor (Max +/- 15% based on sentiment)
+                # If average sentiment is -1.0, adjustment is 0.85. If +1.0, adjustment is 1.15.
+                context['adjustment_factor'] = 1.0 + (avg_sentiment * 0.15)
+                
+    except Exception as e:
+        print(f"Error fetching qualitative data: {e}")
+        
+    return context
 
 def add_technical_features(df: pd.DataFrame):
     """Calculates technical indicators manually to avoid dependencies."""

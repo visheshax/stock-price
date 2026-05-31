@@ -4,7 +4,7 @@ import altair as alt
 from datetime import datetime, timedelta
 
 # Import our decoupled hybrid logic
-from predictor import get_stock_data, train_hybrid_model, predict_hybrid_future, search_ticker
+from predictor import get_stock_data, train_hybrid_model, predict_hybrid_future, search_ticker, get_qualitative_context
 
 st.set_page_config(page_title="Hybrid Stock Price Predictor", layout="wide")
 
@@ -16,6 +16,10 @@ def load_data(ticker, history_years):
 @st.cache_data(show_spinner=False)
 def get_search_results(query):
     return search_ticker(query)
+
+@st.cache_data(show_spinner=False)
+def get_context(ticker):
+    return get_qualitative_context(ticker)
 
 # Use cache_resource for the model since it's an object we shouldn't repeatedly train 
 # if the underlying data and parameters haven't changed.
@@ -80,7 +84,26 @@ def main():
                 # 3. Predict
                 predicted_price, forecast = predict_hybrid_future(model_dict, df, str(target_date_input))
                 
+                # 4. Qualitative Override (Automatic Blend)
+                qual_context = get_context(ticker)
+                adj = qual_context.get('adjustment_factor', 1.0)
+                
+                # Smoothly apply adjustment over the forecast period to avoid visual chart jump
+                steps = len(forecast)
+                if steps > 0:
+                    scaling_array = [1.0 + ((adj - 1.0) * (i / steps)) for i in range(steps)]
+                    forecast['hybrid_yhat'] = forecast['hybrid_yhat'] * scaling_array
+                    predicted_price = forecast.iloc[-1]['hybrid_yhat']
+                
                 st.success("Analysis Complete")
+                
+                # Qualitative Analyst Block
+                if qual_context.get('news_count', 0) > 0:
+                    sentiment_pct = (adj - 1.0) * 100
+                    st.info(f"**🤖 Automatic Contextual Adjustment: {sentiment_pct:+.1f}%** applied to base forecast.\\n"
+                            f"**News Sentiment Score:** {qual_context['sentiment_score']:+.2f} (based on {qual_context['news_count']} recent headlines) | "
+                            f"**Profit Margin:** {qual_context['profit_margins']} | "
+                            f"**Rev Growth:** {qual_context['revenue_growth']}")
                 
                 # Layout Metrics
                 last_row = df.iloc[-1]
@@ -91,7 +114,7 @@ def main():
                 
                 m1, m2, m3 = st.columns(3)
                 m1.metric("Last Close", f"${last_price:.2f}", last_date)
-                m2.metric("Prediction", f"${predicted_price:.2f}", f"{target_date_input}")
+                m2.metric("Prediction (Blended)", f"${predicted_price:.2f}", f"{target_date_input}")
                 m3.metric("Projected Move", f"{delta:+.2f}", f"{pct_change:+.2f}%")
                 st.divider()
 

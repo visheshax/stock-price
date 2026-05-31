@@ -5,3 +5,4 @@ pandas
 altair
 xgboost
 scikit-learn
+nltk
