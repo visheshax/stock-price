@@ -84,10 +84,12 @@ def main():
         st.write("") # Spacing to align button with input
         st.write("")
         predict_btn = st.button("Predict Prices", type="primary", use_container_width=True)
+        if predict_btn:
+            st.session_state.predict_clicked = True
 
     st.divider()
 
-    if predict_btn and tickers_to_compare:
+    if st.session_state.get('predict_clicked', False) and tickers_to_compare:
             # Create dynamic columns
             cols = st.columns(len(tickers_to_compare))
             
@@ -170,22 +172,29 @@ def main():
                         # Goal Seek Logic
                         with st.expander("🎯 Goal Seek (Reverse Forecast)"):
                             st.caption("Calculate the exact date the stock is projected to hit a specific price.")
-                            goal_price = st.number_input("Target Price", value=float(last_price * 1.25), key=f"goal_{ticker}", step=10.0)
                             
-                            if goal_price > last_price:
-                                hit_rows = forecast[forecast['hybrid_yhat'] >= goal_price]
-                            else:
-                                hit_rows = forecast[forecast['hybrid_yhat'] <= goal_price]
-                                
-                            if not hit_rows.empty:
-                                hit_date = hit_rows['ds'].iloc[0]
-                                days_to_hit = (hit_date - pd.Timestamp.now().normalize()).days
-                                if days_to_hit > 0:
-                                    st.success(f"Projected to hit **${goal_price:,.2f}** on **{hit_date.strftime('%b %d, %Y')}** ({days_to_hit/365:.1f} years).")
+                            # Constrain width and add explicit button
+                            goal_col1, goal_col2 = st.columns([2, 1])
+                            with goal_col1:
+                                goal_price = st.number_input("Target Price", value=float(last_price * 1.25), key=f"goal_input_{ticker}", step=10.0, label_visibility="collapsed")
+                            with goal_col2:
+                                calc_btn = st.button("Calculate Date", key=f"goal_btn_{ticker}", use_container_width=True)
+                            
+                            if calc_btn:
+                                if goal_price > last_price:
+                                    hit_rows = forecast[forecast['hybrid_yhat'] >= goal_price]
                                 else:
-                                    st.success(f"Already crossed **${goal_price:,.2f}** historically or today.")
-                            else:
-                                st.warning("Not projected to hit this price within the 10-year macro forecast horizon.")
+                                    hit_rows = forecast[forecast['hybrid_yhat'] <= goal_price]
+                                    
+                                if not hit_rows.empty:
+                                    hit_date = hit_rows['ds'].iloc[0]
+                                    days_to_hit = (hit_date - pd.Timestamp.now().normalize()).days
+                                    if days_to_hit > 0:
+                                        st.success(f"Projected to hit **${goal_price:,.2f}** on **{hit_date.strftime('%b %d, %Y')}** ({days_to_hit/365:.1f} years).")
+                                    else:
+                                        st.success(f"Already crossed **${goal_price:,.2f}** historically or today.")
+                                else:
+                                    st.warning("Not projected to hit this price within the 10-year macro forecast horizon.")
 
                     except Exception as e:
                         st.error(f"Error analyzing {ticker}: {str(e)}")
