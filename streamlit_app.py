@@ -4,8 +4,17 @@ import altair as alt
 from datetime import datetime, timedelta
 import numpy as np
 
-# Import our decoupled hybrid logic
-from predictor import get_stock_data, train_hybrid_model, predict_hybrid_future, search_ticker, get_qualitative_context, get_benchmark_ticker, get_benchmark_forecast
+try:
+    # Import our decoupled hybrid logic
+    from predictor import get_stock_data, train_hybrid_model, predict_hybrid_future, search_ticker, get_qualitative_context, get_benchmark_ticker, get_benchmark_forecast
+except Exception as e:
+    import streamlit as st
+    import traceback
+    st.set_page_config(page_title="Error Details", layout="wide")
+    st.error("⚠️ CRITICAL IMPORT ERROR IN PREDICTOR.PY")
+    st.error(f"Error Message: {str(e)}")
+    st.code(traceback.format_exc(), language="python")
+    st.stop()
 
 st.set_page_config(page_title="Hybrid Stock Price Predictor", layout="wide")
 
