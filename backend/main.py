@@ -17,6 +17,22 @@ from predictor_v2 import (
     get_benchmark_forecast
 )
 
+# Global in-memory cache to prevent multiple concurrent or sequential benchmark index fits
+# that cause Render's 512MB RAM free tier instances to crash with OOM.
+BENCHMARK_CACHE = {}
+
+def fetch_cached_benchmark(benchmark_ticker: str, history_years: int) -> pd.DataFrame:
+    if benchmark_ticker in BENCHMARK_CACHE:
+        print(f"[CACHE] Returning cached benchmark forecast for {benchmark_ticker}")
+        return BENCHMARK_CACHE[benchmark_ticker]
+    
+    print(f"[CACHE] Cache miss for {benchmark_ticker}. Training benchmark forecast...")
+    forecast = get_benchmark_forecast(benchmark_ticker, history_years)
+    if forecast is not None:
+        BENCHMARK_CACHE[benchmark_ticker] = forecast
+        print(f"[CACHE] Benchmark forecast for {benchmark_ticker} successfully cached.")
+    return forecast
+
 app = FastAPI(
     title="Hybrid Stock Price Predictor API",
     description="Institutional-grade time-series forecasting backend powered by Prophet and Gradient Boosting",
@@ -74,7 +90,7 @@ async def api_predict(request: PredictRequest):
         benchmark_ticker = get_benchmark_ticker(ticker)
         
         # 3. Train benchmark model first (using cached/dynamic scale 0.001)
-        benchmark_forecast = get_benchmark_forecast(benchmark_ticker, history_years)
+        benchmark_forecast = fetch_cached_benchmark(benchmark_ticker, history_years)
         
         # 4. Train individual hybrid model (Moderately flexible 0.05 changepoint scale)
         changepoint_scale = 0.05
