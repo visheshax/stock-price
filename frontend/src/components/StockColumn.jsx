@@ -87,19 +87,63 @@ export default function StockColumn({
           <div className="flex flex-col flex-1 justify-between">
             {/* Decoupled Date Selector & Prediction Button Row (Visible when stock is selected) */}
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex items-center justify-between gap-3 mb-6">
-              <div className="flex-1">
-                <label className="text-[9px] text-slate-500 flex items-center gap-1 font-bold uppercase mb-1">
-                  <Calendar size={12} className="text-indigo-600" />
-                  Horizon
-                </label>
-                <input
-                  type="date"
-                  className="glass-input w-full py-1 px-2.5 text-xs text-slate-900 border-slate-200/80 bg-white"
-                  value={targetDate}
-                  min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
-                  onChange={(e) => onUpdateDate(e.target.value)}
-                  disabled={loading}
-                />
+              <div className="flex-1 flex gap-2">
+                <div className="flex-1">
+                  <label className="text-[9px] text-slate-500 flex items-center gap-1 font-bold uppercase mb-1">
+                    <Calendar size={12} className="text-indigo-600" />
+                    Month
+                  </label>
+                  <select
+                    className="glass-input w-full py-1 px-2 text-xs text-slate-900 border-slate-200/80 bg-white cursor-pointer focus:outline-none"
+                    value={(() => {
+                      const d = new Date(targetDate);
+                      return isNaN(d.getTime()) ? new Date().getMonth() : d.getMonth();
+                    })()}
+                    onChange={(e) => {
+                      const newMonth = parseInt(e.target.value);
+                      const d = new Date(targetDate);
+                      const year = isNaN(d.getTime()) ? new Date().getFullYear() + 1 : d.getFullYear();
+                      
+                      const lastDay = new Date(year, newMonth + 1, 0).getDate();
+                      const monthStr = String(newMonth + 1).padStart(2, "0");
+                      const dayStr = String(lastDay).padStart(2, "0");
+                      onUpdateDate(`${year}-${monthStr}-${dayStr}`);
+                    }}
+                    disabled={loading}
+                  >
+                    {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m, idx) => (
+                      <option key={m} value={idx}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="w-[80px]">
+                  <label className="text-[9px] text-slate-500 flex items-center gap-1 font-bold uppercase mb-1">
+                    Year
+                  </label>
+                  <select
+                    className="glass-input w-full py-1 px-2 text-xs text-slate-900 border-slate-200/80 bg-white cursor-pointer focus:outline-none"
+                    value={(() => {
+                      const d = new Date(targetDate);
+                      return isNaN(d.getTime()) ? new Date().getFullYear() + 1 : d.getFullYear();
+                    })()}
+                    onChange={(e) => {
+                      const newYear = parseInt(e.target.value);
+                      const d = new Date(targetDate);
+                      const month = isNaN(d.getTime()) ? new Date().getMonth() : d.getMonth();
+                      
+                      const lastDay = new Date(newYear, month + 1, 0).getDate();
+                      const monthStr = String(month + 1).padStart(2, "0");
+                      const dayStr = String(lastDay).padStart(2, "0");
+                      onUpdateDate(`${newYear}-${monthStr}-${dayStr}`);
+                    }}
+                    disabled={loading}
+                  >
+                    {Array.from({ length: 21 }, (_, i) => new Date().getFullYear() + i).map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <button
                 onClick={onPredict}
