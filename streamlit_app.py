@@ -174,8 +174,10 @@ def main():
                         
                         st.divider()
                         
-                        # Visualizations
+                        # Visualizations (Cap historical data in plot at max 5 years to date)
                         hist_chart_data = df.copy()
+                        five_years_ago = pd.Timestamp.now().normalize() - pd.DateOffset(years=5)
+                        hist_chart_data = hist_chart_data[hist_chart_data['ds'] >= five_years_ago]
                         hist_chart_data['Type'] = 'Historical'
                         
                         future_chart_data = visual_forecast[['ds', 'hybrid_yhat']].copy()
