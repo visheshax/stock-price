@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+yfinance
+prophet
+scikit-learn
+pandas
+numpy
+nltk

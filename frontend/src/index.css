@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+body {
+  background-color: #020617; /* slate-950 fallback */
+  color: #f8fafc; /* slate-100 fallback */
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.05) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(220, 38, 38, 0.03) 0px, transparent 50%);
+  background-attachment: fixed;
+}
+
+/* Premium Glassmorphic Layout Components */
+.glass-panel {
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(30, 41, 59, 0.8);
+  border-radius: 1rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-panel:hover {
+  border-color: rgba(51, 65, 85, 0.8);
+  box-shadow: 0 20px 25px -5px rgba(99, 102, 241, 0.05);
+}
+
+.glass-input {
+  background-color: rgba(2, 6, 23, 0.5);
+  backdrop-filter: blur(12px);
+  border: 1px solid #1e293b;
+  border-radius: 0.75rem;
+  padding: 0.5rem 1rem;
+  color: #f8fafc;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 1px #6366f1;
+}
+
+.glass-button-primary {
+  background: linear-gradient(to right, #4f46e5, #059669);
+  color: white;
+  font-weight: 500;
+  border-radius: 0.75rem;
+  padding: 0.625rem 1.5rem;
+  box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-button-primary:hover {
+  background: linear-gradient(to right, #6366f1, #10b981);
+}
+
+.glass-button-primary:active {
+  transform: scale(0.95);
+}
+
+.glass-button-primary:disabled {
+  opacity: 0.5;
+  transform: scale(1);
+}
+
+.glass-button-secondary {
+  background-color: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  color: #e2e8f0;
+  font-weight: 500;
+  border-radius: 0.75rem;
+  padding: 0.5rem 1rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-button-secondary:hover {
+  background-color: rgba(51, 65, 85, 0.8);
+}
+
+/* Custom Premium Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #020617;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
