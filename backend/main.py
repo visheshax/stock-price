@@ -106,6 +106,8 @@ async def api_predict(request: PredictRequest):
         if steps > 0:
             scaling_array = [1.0 + ((adj - 1.0) * (i / steps)) for i in range(steps)]
             forecast['hybrid_yhat'] = forecast['hybrid_yhat'] * scaling_array
+            forecast['hybrid_yhat_upper'] = forecast['hybrid_yhat_upper'] * scaling_array
+            forecast['hybrid_yhat_lower'] = forecast['hybrid_yhat_lower'] * scaling_array
             
         # 7. Apply Autoregressive Anchor Smoothing to prevent Day-1 jumps/cliffs
         last_row = df.iloc[-1]
@@ -117,14 +119,20 @@ async def api_predict(request: PredictRequest):
         decay_rate = 0.07 
         decay_array = np.exp(-decay_rate * np.arange(len(forecast)))
         forecast['hybrid_yhat'] = forecast['hybrid_yhat'] + (gap * decay_array)
+        forecast['hybrid_yhat_upper'] = forecast['hybrid_yhat_upper'] + (gap * decay_array)
+        forecast['hybrid_yhat_lower'] = forecast['hybrid_yhat_lower'] + (gap * decay_array)
         
         # Recalculate target date price after adjustments
         target_dt = pd.to_datetime(target_date).tz_localize(None).normalize()
         pred_row = forecast[forecast['ds'] == target_dt]
         if not pred_row.empty:
             predicted_price = float(pred_row['hybrid_yhat'].values[0])
+            predicted_upper = float(pred_row['hybrid_yhat_upper'].values[0])
+            predicted_lower = float(pred_row['hybrid_yhat_lower'].values[0])
         else:
             predicted_price = float(forecast.iloc[-1]['hybrid_yhat'])
+            predicted_upper = float(forecast.iloc[-1]['hybrid_yhat_upper'])
+            predicted_lower = float(forecast.iloc[-1]['hybrid_yhat_lower'])
             
         # Calculate moves
         delta = predicted_price - last_price
@@ -149,6 +157,8 @@ async def api_predict(request: PredictRequest):
                 chart_data.append({
                     "date": row['ds'].strftime('%Y-%m-%d'),
                     "price": round(float(row['hybrid_yhat']), 2),
+                    "price_upper": round(float(row['hybrid_yhat_upper']), 2),
+                    "price_lower": round(float(row['hybrid_yhat_lower']), 2),
                     "type": "Forecast"
                 })
         
@@ -161,6 +171,8 @@ async def api_predict(request: PredictRequest):
             "last_price": round(last_price, 2),
             "last_date": last_date,
             "predicted_price": round(predicted_price, 2),
+            "predicted_upper": round(predicted_upper, 2),
+            "predicted_lower": round(predicted_lower, 2),
             "predicted_date": target_date,
             "projected_move_val": round(delta, 2),
             "projected_move_pct": round(pct_change, 2),

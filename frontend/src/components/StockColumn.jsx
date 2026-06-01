@@ -208,6 +208,24 @@ export default function StockColumn({
                       <span className={`text-[9px] font-bold block mt-0.5 ${isUp ? 'text-emerald-700' : 'text-rose-700'}`}>
                         {isUp ? '+' : ''}{data.projected_move_pct.toFixed(2)}%
                       </span>
+                  </div>
+
+                  {/* Scenarios Panel */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 mb-6 animate-fadeIn">
+                    <span className="text-[10px] text-slate-500 block uppercase font-bold mb-2">🔮 Forecasting Scenarios</span>
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                      <div className="bg-white border border-rose-100 rounded-lg p-2">
+                        <span className="text-[9px] text-rose-600 block font-bold uppercase">Worst Case</span>
+                        <span className="font-bold text-rose-700">${data.predicted_lower.toFixed(2)}</span>
+                      </div>
+                      <div className="bg-white border border-slate-100 rounded-lg p-2">
+                        <span className="text-[9px] text-slate-600 block font-bold uppercase">Expected</span>
+                        <span className="font-bold text-slate-800">${data.predicted_price.toFixed(2)}</span>
+                      </div>
+                      <div className="bg-white border border-emerald-100 rounded-lg p-2">
+                        <span className="text-[9px] text-emerald-600 block font-bold uppercase">Best Case</span>
+                        <span className="font-bold text-emerald-700">${data.predicted_upper.toFixed(2)}</span>
+                      </div>
                     </div>
                   </div>
 

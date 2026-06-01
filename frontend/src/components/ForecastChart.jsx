@@ -15,7 +15,9 @@ export default function ForecastChart({ chartData }) {
     return {
       date: pt.date,
       Historical: isHist ? pt.price : null,
-      Forecast: !isHist ? pt.price : null
+      Forecast: !isHist ? pt.price : null,
+      ForecastUpper: !isHist ? pt.price_upper : null,
+      ForecastLower: !isHist ? pt.price_lower : null
     };
   });
 
@@ -24,6 +26,8 @@ export default function ForecastChart({ chartData }) {
     const firstForecastIdx = processedData.findIndex(p => p.Forecast !== null);
     if (firstForecastIdx !== -1) {
       processedData[firstForecastIdx].Historical = lastHistPt.price;
+      processedData[firstForecastIdx].ForecastUpper = lastHistPt.price;
+      processedData[firstForecastIdx].ForecastLower = lastHistPt.price;
     }
   }
 
@@ -31,15 +35,41 @@ export default function ForecastChart({ chartData }) {
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
-      const val = payload[0].value || payload[1]?.value;
-      const type = payload[0].value ? "Historical" : "Forecast";
+      const isForecast = data.Forecast !== null;
+      
       return (
-        <div className="bg-slate-950/95 backdrop-blur-md border border-slate-800 p-3 rounded-xl shadow-2xl text-xs">
-          <p className="text-slate-400 font-medium mb-1">{data.date}</p>
-          <p className="font-semibold flex items-center gap-1.5">
-            <span className={`w-2 h-2 rounded-full ${type === "Historical" ? "bg-indigo-500" : "bg-emerald-400"}`}></span>
-            {type}: <span className="text-white">${val.toFixed(2)}</span>
-          </p>
+        <div className="bg-slate-950/95 backdrop-blur-md border border-slate-800 p-3 rounded-xl shadow-2xl text-[11px]">
+          <p className="text-slate-400 font-medium mb-1.5">{data.date}</p>
+          {!isForecast ? (
+            <p className="font-semibold flex items-center gap-1.5 text-white">
+              <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+              Historical: <span className="font-bold">${data.Historical.toFixed(2)}</span>
+            </p>
+          ) : (
+            <div className="space-y-1 text-slate-300">
+              <p className="flex items-center justify-between gap-4">
+                <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                  Best Case:
+                </span>
+                <span className="font-bold text-white">${data.ForecastUpper?.toFixed(2)}</span>
+              </p>
+              <p className="flex items-center justify-between gap-4">
+                <span className="flex items-center gap-1.5 text-slate-300 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                  Expected:
+                </span>
+                <span className="font-bold text-white">${data.Forecast?.toFixed(2)}</span>
+              </p>
+              <p className="flex items-center justify-between gap-4">
+                <span className="flex items-center gap-1.5 text-rose-400 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                  Worst Case:
+                </span>
+                <span className="font-bold text-white">${data.ForecastLower?.toFixed(2)}</span>
+              </p>
+            </div>
+          )}
         </div>
       );
     }
@@ -79,6 +109,24 @@ export default function ForecastChart({ chartData }) {
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 4, strokeWidth: 0 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="ForecastUpper"
+            stroke="#10b981"
+            strokeWidth={1.5}
+            strokeDasharray="3 3"
+            dot={false}
+            opacity={0.4}
+          />
+          <Line
+            type="monotone"
+            dataKey="ForecastLower"
+            stroke="#ef4444"
+            strokeWidth={1.5}
+            strokeDasharray="3 3"
+            dot={false}
+            opacity={0.4}
           />
         </LineChart>
       </ResponsiveContainer>

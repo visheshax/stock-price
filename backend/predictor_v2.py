@@ -300,6 +300,7 @@ def train_hybrid_model(ticker: str, df: pd.DataFrame, changepoint_scale: float, 
         'use_yearly': use_yearly,
         'cap': cap_val,
         'floor': floor_val,
+        'residual_std': float(y_residual.std()),
         'last_technical_features': {
             'MA20_lag1': df_tech['MA20'].iloc[-1],
             'MA50_lag1': df_tech['MA50'].iloc[-1],
@@ -371,8 +372,19 @@ def predict_hybrid_future(model_dict: dict, df: pd.DataFrame, target_date: str, 
     
     future_dates['hybrid_yhat'] = future_dates['yhat'] + residual_preds
     
+    # Calculate best/worst scenarios dynamically based on historical residuals standard error
+    t_days = np.arange(1, len(future_dates) + 1)
+    residual_std = model_dict.get('residual_std', df['y'].std() * 0.1)
+    # Uncertainty scales with square root of time
+    uncertainty_corridor = 1.96 * residual_std * np.sqrt(t_days / 252.0)
+    
+    future_dates['hybrid_yhat_upper'] = future_dates['hybrid_yhat'] + uncertainty_corridor
+    future_dates['hybrid_yhat_lower'] = future_dates['hybrid_yhat'] - uncertainty_corridor
+    
     # Financial Sanity Check: Stock prices cannot be negative
     future_dates['hybrid_yhat'] = future_dates['hybrid_yhat'].clip(lower=0.01)
+    future_dates['hybrid_yhat_upper'] = future_dates['hybrid_yhat_upper'].clip(lower=0.01)
+    future_dates['hybrid_yhat_lower'] = future_dates['hybrid_yhat_lower'].clip(lower=0.01)
     
     prediction_row = future_dates[future_dates['ds'] == target_dt]
     if not prediction_row.empty:
