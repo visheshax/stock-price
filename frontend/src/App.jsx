@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import SearchInput from "./components/SearchInput";
 import StockColumn from "./components/StockColumn";
-import { TrendingUp, Calendar, AlertCircle } from "lucide-react";
+import { TrendingUp, Calendar } from "lucide-react";
 
 // Dynamically determine the backend API URL (handles Render and dev)
 const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -9,18 +9,19 @@ const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 export default function App() {
   const [tickers, setTickers] = useState(["", "", ""]);
   const [labels, setLabels] = useState(["", "", ""]);
-  const [targetDate, setTargetDate] = useState(() => {
-    // Tomorrow formatted as YYYY-MM-DD
+  const [targetDates, setTargetDates] = useState(() => {
+    // Default tomorrow formatted as YYYY-MM-DD for each slot
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split("T")[0];
+    const tomorrowStr = tomorrow.toISOString().split("T")[0];
+    return [tomorrowStr, tomorrowStr, tomorrowStr];
   });
   
   const [loadings, setLoadings] = useState([false, false, false]);
   const [results, setResults] = useState([null, null, null]);
   const [errors, setErrors] = useState([null, null, null]);
 
-  // Handle stock selection
+  // Handle stock selection for a slot
   const handleSelectStock = (index, symbol, label) => {
     const updatedTickers = [...tickers];
     const updatedLabels = [...labels];
@@ -29,7 +30,7 @@ export default function App() {
     setTickers(updatedTickers);
     setLabels(updatedLabels);
     
-    // Clear old result for this slot
+    // Clear old state for this slot
     const updatedResults = [...results];
     const updatedErrors = [...errors];
     updatedResults[index] = null;
@@ -58,68 +59,70 @@ export default function App() {
     setErrors(updatedErrors);
   };
 
-  // Execute Parallel Concurrent Predictions
-  const handlePredictAll = async () => {
-    const activeIndices = tickers.map((t, idx) => t ? idx : -1).filter(idx => idx !== -1);
-    if (activeIndices.length === 0) return;
-
-    // Trigger loader state in parallel
-    const initialLoadings = [...loadings];
-    const initialErrors = [...errors];
-    const initialResults = [...results];
-    activeIndices.forEach(idx => {
-      initialLoadings[idx] = true;
-      initialErrors[idx] = null;
-      initialResults[idx] = null;
-    });
-    setLoadings(initialLoadings);
-    setErrors(initialErrors);
-    setResults(initialResults);
-
-    // Launch async fetch requests concurrently
-    const predictionPromises = activeIndices.map(async (idx) => {
-      const symbol = tickers[idx];
-      try {
-        const response = await fetch(`${BACKEND_URL}/api/predict`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ticker: symbol, target_date: targetDate })
-        });
-        
-        if (!response.ok) {
-          const errMsg = await response.text();
-          throw new Error(errMsg || "Internal server error");
-        }
-        
-        const data = await response.json();
-        
-        // Update results state individually as they arrive
-        setResults(prev => {
-          const updated = [...prev];
-          updated[idx] = data;
-          return updated;
-        });
-      } catch (err) {
-        console.error(`Error predicting ${symbol}:`, err);
-        setErrors(prev => {
-          const updated = [...prev];
-          updated[idx] = err.message || "Failed to fetch predictions";
-          return updated;
-        });
-      } finally {
-        setLoadings(prev => {
-          const updated = [...prev];
-          updated[idx] = false;
-          return updated;
-        });
-      }
-    });
-
-    // Wait for all processes to fully resolve concurrently
-    await Promise.all(predictionPromises);
+  // Update target date for a specific stock slot
+  const handleUpdateDate = (index, dateStr) => {
+    const updatedDates = [...targetDates];
+    updatedDates[index] = dateStr;
+    setTargetDates(updatedDates);
   };
 
-  const hasActiveStocks = tickers.some(t => t !== "");
+  // Execute predictions for a single stock slot (completely decoupled)
+  const handlePredictSlot = async (index) => {
+    const symbol = tickers[index];
+    const targetDate = targetDates[index];
+    if (!symbol || !targetDate) return;
+
+    // Set loading state for this index only
+    setLoadings(prev => {
+      const updated = [...prev];
+      updated[index] = true;
+      return updated;
+    });
+    setErrors(prev => {
+      const updated = [...prev];
+      updated[index] = null;
+      return updated;
+    });
+    setResults(prev => {
+      const updated = [...prev];
+      updated[index] = null;
+      return updated;
+    });
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/predict`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticker: symbol, target_date: targetDate })
+      });
+      
+      if (!response.ok) {
+        const errMsg = await response.text();
+        throw new Error(errMsg || "Internal server error");
+      }
+      
+      const data = await response.json();
+      
+      setResults(prev => {
+        const updated = [...prev];
+        updated[index] = data;
+        return updated;
+      });
+    } catch (err) {
+      console.error(`Error predicting slot ${index} (${symbol}):`, err);
+      setErrors(prev => {
+        const updated = [...prev];
+        updated[index] = err.message || "Failed to fetch predictions";
+        return updated;
+      });
+    } finally {
+      setLoadings(prev => {
+        const updated = [...prev];
+        updated[index] = false;
+        return updated;
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen px-4 py-8 sm:px-6 lg:px-8 max-w-7xl mx-auto flex flex-col justify-between">
@@ -137,62 +140,23 @@ export default function App() {
           </div>
         </header>
 
-        {/* Comparison Settings Dashboard */}
-        <section className="glass-panel p-6 mb-8">
-          <h2 className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-4">Comparison Grid Settings</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            {[0, 1, 2].map((idx) => (
-              <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                <label className="text-[10px] text-slate-500 font-bold uppercase block mb-2">
-                  Stock Slot {idx + 1} {idx > 0 && "(Optional)"}
-                </label>
-                <SearchInput
-                  value={labels[idx] ? `${labels[idx]} (${tickers[idx]})` : ""}
-                  index={idx + 1}
-                  onSelect={(symbol, label) => handleSelectStock(idx, symbol, label)}
-                  onClear={() => handleClearStock(idx)}
-                  backendUrl={BACKEND_URL}
-                />
-              </div>
-            ))}
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-t border-slate-200 pt-5">
-            <div className="w-full sm:max-w-xs">
-              <label className="text-[10px] text-slate-500 flex items-center gap-1.5 font-bold uppercase mb-2">
-                <Calendar size={14} className="text-indigo-600" />
-                Target Date (Forecast Horizon)
-              </label>
-              <input
-                type="date"
-                className="glass-input w-full py-2 px-3 text-xs"
-                value={targetDate}
-                min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
-                onChange={(e) => setTargetDate(e.target.value)}
-              />
-            </div>
-
-            <button
-              onClick={handlePredictAll}
-              disabled={!hasActiveStocks || loadings.some(l => l)}
-              className="glass-button-primary w-full sm:w-auto uppercase tracking-wide text-xs cursor-pointer"
-            >
-              {loadings.some(l => l) ? "Computing Forecasts..." : "Predict Prices"}
-            </button>
-          </div>
-        </section>
-
-        {/* Dynamic Grid Results */}
+        {/* Dynamic Decoupled Grid Results */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[0, 1, 2].map((idx) => (
             <StockColumn
               key={idx}
-              label={labels[idx] ? `${labels[idx]} (${tickers[idx]})` : `Stock Slot ${idx + 1}`}
+              index={idx}
+              ticker={tickers[idx]}
+              label={labels[idx]}
               loading={loadings[idx]}
               data={results[idx]}
               error={errors[idx]}
-              targetDate={targetDate}
+              targetDate={targetDates[idx]}
+              onSelect={(symbol, label) => handleSelectStock(idx, symbol, label)}
+              onClear={() => handleClearStock(idx)}
+              onUpdateDate={(dateStr) => handleUpdateDate(idx, dateStr)}
+              onPredict={() => handlePredictSlot(idx)}
+              backendUrl={BACKEND_URL}
             />
           ))}
         </section>
