@@ -161,11 +161,6 @@ export default function App() {
           ))}
         </section>
       </div>
-
-      <footer className="text-center text-[10px] text-slate-500 mt-12 pt-6 border-t border-slate-200">
-        <p className="uppercase tracking-wider font-semibold">Institutional Grade Quantitative Analytics Engine</p>
-        <p className="mt-1">Powered by React, Recharts, FastAPI, and Advanced Quantitative Modeling</p>
-      </footer>
     </div>
   );
 }
