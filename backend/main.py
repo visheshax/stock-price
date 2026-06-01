@@ -122,17 +122,30 @@ async def api_predict(request: PredictRequest):
         forecast['hybrid_yhat_upper'] = forecast['hybrid_yhat_upper'] + (gap * decay_array)
         forecast['hybrid_yhat_lower'] = forecast['hybrid_yhat_lower'] + (gap * decay_array)
         
-        # Recalculate target date price after adjustments
+        # Recalculate target date price after adjustments (handles past dates gracefully)
         target_dt = pd.to_datetime(target_date).tz_localize(None).normalize()
-        pred_row = forecast[forecast['ds'] == target_dt]
-        if not pred_row.empty:
-            predicted_price = float(pred_row['hybrid_yhat'].values[0])
-            predicted_upper = float(pred_row['hybrid_yhat_upper'].values[0])
-            predicted_lower = float(pred_row['hybrid_yhat_lower'].values[0])
+        
+        if target_dt <= df['ds'].max():
+            # Target date is in the historical past - return exact actual historical price
+            hist_row = df[df['ds'] == target_dt]
+            if not hist_row.empty:
+                predicted_price = float(hist_row['y'].values[0])
+            else:
+                closest_idx = (df['ds'] - target_dt).abs().idxmin()
+                predicted_price = float(df.loc[closest_idx, 'y'])
+            predicted_upper = predicted_price
+            predicted_lower = predicted_price
         else:
-            predicted_price = float(forecast.iloc[-1]['hybrid_yhat'])
-            predicted_upper = float(forecast.iloc[-1]['hybrid_yhat_upper'])
-            predicted_lower = float(forecast.iloc[-1]['hybrid_yhat_lower'])
+            # Target date is in the future forecast horizon
+            pred_row = forecast[forecast['ds'] == target_dt]
+            if not pred_row.empty:
+                predicted_price = float(pred_row['hybrid_yhat'].values[0])
+                predicted_upper = float(pred_row['hybrid_yhat_upper'].values[0])
+                predicted_lower = float(pred_row['hybrid_yhat_lower'].values[0])
+            else:
+                predicted_price = float(forecast.iloc[-1]['hybrid_yhat'])
+                predicted_upper = float(forecast.iloc[-1]['hybrid_yhat_upper'])
+                predicted_lower = float(forecast.iloc[-1]['hybrid_yhat_lower'])
             
         # Calculate moves
         delta = predicted_price - last_price
