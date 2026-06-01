@@ -31,9 +31,9 @@ export default function StockColumn({
 
     let hitRow = null;
     if (target > lastPrice) {
-      hitRow = forecastPts.find(pt => pt.price >= target);
+      hitRow = forecastPts.find(pt => pt.price_lower >= target);
     } else {
-      hitRow = forecastPts.find(pt => pt.price <= target);
+      hitRow = forecastPts.find(pt => pt.price_lower <= target);
     }
 
     if (hitRow) {
