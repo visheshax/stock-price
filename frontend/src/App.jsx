@@ -4,7 +4,7 @@ import StockColumn from "./components/StockColumn";
 import { TrendingUp, Calendar } from "lucide-react";
 
 // Dynamically determine the backend API URL (handles Render and dev)
-const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const BACKEND_URL = import.meta.env.VITE_API_URL || "https://stock-price-gm21.onrender.com";
 
 export default function App() {
   const [tickers, setTickers] = useState(["", "", ""]);
