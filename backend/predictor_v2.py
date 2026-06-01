@@ -117,7 +117,7 @@ def get_qualitative_context(ticker: str):
         
     return context
 
-def get_benchmark_forecast(benchmark_ticker: str, history_years: int, changepoint_scale: float = None, days_ahead: int = 7300) -> pd.DataFrame:
+def get_benchmark_forecast(benchmark_ticker: str, history_years: int, changepoint_scale: float = None, days_ahead: int = 3650) -> pd.DataFrame:
     """Trains a Prophet model on the benchmark index and returns its historical+future trend curve."""
     # Always use the institutional constant for benchmark scale, ignoring any passed-in value
     scale = BENCHMARK_CHANGEPOINT_SCALE
@@ -314,16 +314,16 @@ def predict_hybrid_future(model_dict: dict, df: pd.DataFrame, target_date: str, 
     cap_val = model_dict.get('cap', 1000000.0)
     floor_val = model_dict.get('floor', 0.01)
     
-    # 1. Generate future dates (Always generate at least 20 years for Goal Seek reverse forecasting)
+    # 1. Generate future dates (Always generate at least 10 years for Goal Seek reverse forecasting)
     target_dt = pd.to_datetime(target_date).tz_localize(None).normalize()
     last_dt = df['ds'].max()
     days_to_target = (target_dt - last_dt).days
     
-    # Force the engine to forecast 7300 days (20 years) forward regardless of the visual target date
-    days_ahead = max(days_to_target, 7300)
+    # Force the engine to forecast 3650 days (10 years) forward regardless of the visual target date
+    days_ahead = max(days_to_target, 3650)
     
     if days_ahead <= 0:
-        days_ahead = 7300
+        days_ahead = 3650
         
     future_dates = m_prophet.make_future_dataframe(periods=days_ahead)
     future_dates['cap'] = cap_val

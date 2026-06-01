@@ -48,7 +48,7 @@ export default function StockColumn({
     } else {
       setSeekResult({
         success: false,
-        message: "Not projected to hit this price within the 20-year macro forecast horizon."
+        message: "Not projected to hit this price within the 10-year macro forecast horizon."
       });
     }
   };
@@ -139,7 +139,7 @@ export default function StockColumn({
                     }}
                     disabled={loading}
                   >
-                    {Array.from({ length: 21 }, (_, i) => new Date().getFullYear() + i).map((y) => (
+                    {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() + i).map((y) => (
                       <option key={y} value={y}>{y}</option>
                     ))}
                   </select>
