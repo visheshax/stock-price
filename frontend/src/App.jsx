@@ -125,10 +125,10 @@ export default function App() {
     <div className="min-h-screen px-4 py-8 sm:px-6 lg:px-8 max-w-7xl mx-auto flex flex-col justify-between">
       <div>
         {/* Header Block */}
-        <header className="mb-8 text-center sm:text-left flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-900 pb-6">
+        <header className="mb-8 text-center sm:text-left flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-6">
           <div>
-            <h1 className="text-2xl font-black bg-gradient-to-r from-indigo-400 to-emerald-400 bg-clip-text text-transparent flex items-center justify-center sm:justify-start gap-2.5">
-              <TrendingUp size={28} className="text-indigo-400" />
+            <h1 className="text-2xl font-black bg-gradient-to-r from-indigo-600 to-emerald-600 bg-clip-text text-transparent flex items-center justify-center sm:justify-start gap-2.5">
+              <TrendingUp size={28} className="text-indigo-600" />
               HYBRID STOCK PRICE PREDICTOR
             </h1>
             <p className="text-xs text-slate-500 mt-1 uppercase tracking-wider font-semibold">
@@ -139,11 +139,11 @@ export default function App() {
 
         {/* Comparison Settings Dashboard */}
         <section className="glass-panel p-6 mb-8">
-          <h2 className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-4">Comparison Grid Settings</h2>
+          <h2 className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-4">Comparison Grid Settings</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             {[0, 1, 2].map((idx) => (
-              <div key={idx} className="bg-slate-950/40 border border-slate-900/60 rounded-xl p-4">
+              <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-4">
                 <label className="text-[10px] text-slate-500 font-bold uppercase block mb-2">
                   Stock Slot {idx + 1} {idx > 0 && "(Optional)"}
                 </label>
@@ -158,10 +158,10 @@ export default function App() {
             ))}
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-t border-slate-950 pt-5">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-t border-slate-200 pt-5">
             <div className="w-full sm:max-w-xs">
-              <label className="text-[10px] text-slate-400 flex items-center gap-1.5 font-bold uppercase mb-2">
-                <Calendar size={14} className="text-indigo-400" />
+              <label className="text-[10px] text-slate-500 flex items-center gap-1.5 font-bold uppercase mb-2">
+                <Calendar size={14} className="text-indigo-600" />
                 Target Date (Forecast Horizon)
               </label>
               <input
@@ -176,7 +176,7 @@ export default function App() {
             <button
               onClick={handlePredictAll}
               disabled={!hasActiveStocks || loadings.some(l => l)}
-              className="glass-button-primary w-full sm:w-auto uppercase tracking-wide text-xs"
+              className="glass-button-primary w-full sm:w-auto uppercase tracking-wide text-xs cursor-pointer"
             >
               {loadings.some(l => l) ? "Computing Forecasts..." : "Predict Prices"}
             </button>
@@ -198,7 +198,7 @@ export default function App() {
         </section>
       </div>
 
-      <footer className="text-center text-[10px] text-slate-600 mt-12 pt-6 border-t border-slate-900/40">
+      <footer className="text-center text-[10px] text-slate-500 mt-12 pt-6 border-t border-slate-200">
         <p className="uppercase tracking-wider font-semibold">Institutional Grade Machine Learning Analytics Engine</p>
         <p className="mt-1">Powered by React, Recharts, FastAPI, Facebook Prophet, and Scikit-Learn</p>
       </footer>
