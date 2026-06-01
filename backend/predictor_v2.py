@@ -138,7 +138,13 @@ def get_benchmark_forecast(benchmark_ticker: str, history_years: int, changepoin
         df['cap'] = cap_val
         df['floor'] = floor_val
         
-        m = Prophet(growth='logistic', changepoint_prior_scale=scale, daily_seasonality=False, weekly_seasonality=False)
+        m = Prophet(
+            growth='logistic',
+            changepoint_prior_scale=scale,
+            daily_seasonality=False,
+            weekly_seasonality=False,
+            uncertainty_samples=0
+        )
         m.fit(df[['ds', 'y', 'cap', 'floor']])
         
         future = m.make_future_dataframe(periods=days_ahead)
@@ -226,7 +232,8 @@ def train_hybrid_model(ticker: str, df: pd.DataFrame, changepoint_scale: float, 
         weekly_seasonality=False, # FIX: Stock markets are closed on weekends. Prophet freaks out on weekends if this is True.
         yearly_seasonality=use_yearly,
         changepoint_prior_scale=changepoint_scale,
-        seasonality_mode=seasonality_mode
+        seasonality_mode=seasonality_mode,
+        uncertainty_samples=0
     )
     
     # De-Bias Calendar: Inject localized market holidays based on ticker suffix

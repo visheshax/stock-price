@@ -151,7 +151,11 @@ async def api_predict(request: PredictRequest):
                     "price": round(float(row['hybrid_yhat']), 2),
                     "type": "Forecast"
                 })
-                
+        
+        # Explicitly run garbage collection to free model-fitting RAM overhead immediately
+        import gc
+        gc.collect()
+        
         return {
             "ticker": ticker,
             "last_price": round(last_price, 2),
