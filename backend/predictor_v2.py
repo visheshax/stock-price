@@ -124,7 +124,9 @@ def get_benchmark_forecast(benchmark_ticker: str, history_years: int, changepoin
     try:
         df = get_stock_data(benchmark_ticker, history_years)
         
-        cap_val = df['y'].max() * 5.0
+        # Lock national benchmark indices to a conservative 1.5x historical max capacity
+        # to force a realistic, defensible soft-landing over the 20-year horizon.
+        cap_val = df['y'].max() * 1.5
         
         # Dynamic Macro Support Level (same logic as individual stocks)
         if len(df) > 252:
