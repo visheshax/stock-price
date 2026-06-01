@@ -5,10 +5,10 @@ from prophet import Prophet
 from sklearn.ensemble import HistGradientBoostingRegressor
 from datetime import datetime, timedelta
 
+# Institutional Constants
+BENCHMARK_CHANGEPOINT_SCALE = 0.001  # Macro trajectory scale for benchmark indices
+
 def get_stock_data(ticker: str, history_years: int):
-    days_back = history_years * 365
-    start_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
-    
     data = yf.download(ticker, period=f'{history_years}y', auto_adjust=True)
     if data.empty:
         raise ValueError(f"No data found for ticker {ticker}")
@@ -117,17 +117,26 @@ def get_qualitative_context(ticker: str):
         
     return context
 
-def get_benchmark_forecast(benchmark_ticker: str, history_years: int, changepoint_scale: float, days_ahead: int = 7300) -> pd.DataFrame:
+def get_benchmark_forecast(benchmark_ticker: str, history_years: int, changepoint_scale: float = None, days_ahead: int = 7300) -> pd.DataFrame:
     """Trains a Prophet model on the benchmark index and returns its historical+future trend curve."""
+    # Always use the institutional constant for benchmark scale, ignoring any passed-in value
+    scale = BENCHMARK_CHANGEPOINT_SCALE
     try:
         df = get_stock_data(benchmark_ticker, history_years)
         
         cap_val = df['y'].max() * 5.0
-        floor_val = df['y'].min() * 0.5
+        
+        # Dynamic Macro Support Level (same logic as individual stocks)
+        if len(df) > 252:
+            support_level = df['y'].tail(252).min() * 0.85
+        else:
+            support_level = df['y'].min() * 0.85
+        floor_val = max(support_level, df['y'].min() * 0.5)
+        
         df['cap'] = cap_val
         df['floor'] = floor_val
         
-        m = Prophet(growth='logistic', changepoint_prior_scale=changepoint_scale, daily_seasonality=False, weekly_seasonality=False)
+        m = Prophet(growth='logistic', changepoint_prior_scale=scale, daily_seasonality=False, weekly_seasonality=False)
         m.fit(df[['ds', 'y', 'cap', 'floor']])
         
         future = m.make_future_dataframe(periods=days_ahead)
@@ -153,6 +162,7 @@ def add_technical_features(df: pd.DataFrame):
     down = -1 * delta.clip(upper=0)
     ema_up = up.ewm(com=13, adjust=False).mean()
     ema_down = down.ewm(com=13, adjust=False).mean()
+    ema_down = ema_down.replace(0, 1e-10)  # Guard against division by zero
     rs = ema_up / ema_down
     df['RSI'] = 100 - (100 / (1 + rs))
     
@@ -329,6 +339,16 @@ def predict_hybrid_future(model_dict: dict, df: pd.DataFrame, target_date: str, 
     X_future = future_dates[features_cols]
     
     residual_preds = m_xgb.predict(X_future)
+    
+    # C1 FIX: Exponential decay of XGB residual correction
+    # Technical indicators (MA, RSI) are only meaningful near-term.
+    # Decay the residual toward zero with a half-life of 60 trading days
+    # so that long-term forecasts are driven purely by the macro Prophet trend.
+    half_life = 60  # trading days
+    decay_lambda = np.log(2) / half_life
+    decay_weights = np.exp(-decay_lambda * np.arange(len(residual_preds)))
+    residual_preds = residual_preds * decay_weights
+    
     future_dates['hybrid_yhat'] = future_dates['yhat'] + residual_preds
     
     # Financial Sanity Check: Stock prices cannot be negative
