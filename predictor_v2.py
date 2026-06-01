@@ -340,11 +340,22 @@ def predict_hybrid_future(model_dict: dict, df: pd.DataFrame, target_date: str, 
     
     residual_preds = m_xgb.predict(X_future)
     
-    # C1 FIX: Exponential decay of XGB residual correction
-    # Technical indicators (MA, RSI) are only meaningful near-term.
-    # Decay the residual toward zero with a half-life of 60 trading days
-    # so that long-term forecasts are driven purely by the macro Prophet trend.
-    half_life = 60  # trading days
+    # Adaptive Price-to-Trend Divergence Decay:
+    # If the stock price has heavily diverged from the macro Prophet trend (e.g. ACN dropping, Broadcom skyrocketing),
+    # a rapid 60-day decay causes extreme short-term rebound/crash projections.
+    # Symmetrically scale the half-life from 60 days (low divergence) up to 250 trading days (1 year, high divergence).
+    last_price = df['y'].iloc[-1]
+    first_yhat = future_dates['yhat'].iloc[0]
+    divergence = abs(last_price - first_yhat) / first_yhat
+    
+    if divergence <= 0.10:
+        half_life = 60.0
+    elif divergence >= 0.20:
+        half_life = 250.0
+    else:
+        # Linear interpolation between 60 and 250 days
+        half_life = 60.0 + (250.0 - 60.0) * ((divergence - 0.10) / 0.10)
+        
     decay_lambda = np.log(2) / half_life
     decay_weights = np.exp(-decay_lambda * np.arange(len(residual_preds)))
     residual_preds = residual_preds * decay_weights

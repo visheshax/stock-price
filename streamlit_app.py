@@ -75,8 +75,8 @@ def main():
 
     setting_col1, setting_col2 = st.columns([2, 1])
     
-    # Hardcoded Macro Growth strategy (0.001) to prevent short-term dip extrapolation
-    changepoint_scale = 0.001
+    # Moderately flexible scale (0.05) to allow individual stock trends to adapt to structural changes
+    changepoint_scale = 0.05
     
     with setting_col1:
         default_date = datetime.now().date() + timedelta(days=1)
