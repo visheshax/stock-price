@@ -19,6 +19,7 @@ export default function StockColumn({
 }) {
   const [goalPrice, setGoalPrice] = useState("");
   const [seekResult, setSeekResult] = useState(null);
+  const [seekScenario, setSeekScenario] = useState("worst"); // "worst" | "expected" | "best"
 
   // Run client-side Goal Seek scan
   const handleGoalSeek = () => {
@@ -29,12 +30,21 @@ export default function StockColumn({
     const forecastPts = data.chart_data.filter(pt => pt.type === "Forecast");
     const lastPrice = data.last_price;
 
+    let priceKey = "price";
+    if (seekScenario === "worst") {
+      priceKey = "price_lower";
+    } else if (seekScenario === "best") {
+      priceKey = "price_upper";
+    }
+
     let hitRow = null;
     if (target > lastPrice) {
-      hitRow = forecastPts.find(pt => pt.price_lower >= target);
+      hitRow = forecastPts.find(pt => pt[priceKey] >= target);
     } else {
-      hitRow = forecastPts.find(pt => pt.price_lower <= target);
+      hitRow = forecastPts.find(pt => pt[priceKey] <= target);
     }
+
+    const scenarioLabel = seekScenario === "worst" ? "Worst Case" : seekScenario === "best" ? "Best Case" : "Expected";
 
     if (hitRow) {
       const hitDate = new Date(hitRow.date);
@@ -43,12 +53,12 @@ export default function StockColumn({
       
       setSeekResult({
         success: true,
-        message: `Projected to hit $${target.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} on ${hitDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} (${yearsToHit} years).`
+        message: `Projected to hit $${target.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} on ${hitDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} (${yearsToHit} years) under the ${scenarioLabel} scenario.`
       });
     } else {
       setSeekResult({
         success: false,
-        message: "Not projected to hit this price within the 10-year macro forecast horizon."
+        message: `Not projected to hit this price within the 10-year macro forecast horizon under the ${scenarioLabel} scenario.`
       });
     }
   };
@@ -255,19 +265,30 @@ export default function StockColumn({
                     <Target size={14} className="text-indigo-600" />
                     Goal Seek (Reverse Forecast)
                   </h4>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      className="glass-input flex-1 py-1.5 px-3 text-xs bg-white border-slate-200"
-                      placeholder="Target Price..."
-                      value={goalPrice}
-                      onChange={(e) => setGoalPrice(e.target.value)}
-                    />
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <select
+                        className="glass-input text-[10px] py-1.5 px-2 border-slate-200 bg-white cursor-pointer w-[110px] focus:outline-none"
+                        value={seekScenario}
+                        onChange={(e) => setSeekScenario(e.target.value)}
+                      >
+                        <option value="worst">Worst Case</option>
+                        <option value="expected">Expected</option>
+                        <option value="best">Best Case</option>
+                      </select>
+                      <input
+                        type="number"
+                        className="glass-input flex-1 py-1.5 px-3 text-xs bg-white border-slate-200 focus:outline-none"
+                        placeholder="Target Price..."
+                        value={goalPrice}
+                        onChange={(e) => setGoalPrice(e.target.value)}
+                      />
+                    </div>
                     <button 
                       onClick={handleGoalSeek}
-                      className="glass-button-secondary py-1.5 px-3 text-xs hover:bg-slate-200 active:scale-95 cursor-pointer"
+                      className="glass-button-secondary py-1.5 px-3 text-xs hover:bg-slate-200 active:scale-95 cursor-pointer w-full"
                     >
-                      Calculate
+                      Calculate Timeline
                     </button>
                   </div>
 
