@@ -54,11 +54,11 @@ export default function SearchInput({ value, onSelect, onClear, index, backendUr
   return (
     <div className="relative w-full" ref={dropdownRef}>
       {value ? (
-        <div className="flex items-center justify-between glass-input w-full border-slate-700 bg-slate-900/40 text-sm">
-          <span className="font-semibold text-emerald-400 truncate mr-2">{value}</span>
+        <div className="flex items-center justify-between glass-input w-full border-slate-200 bg-white text-slate-900 text-sm">
+          <span className="font-bold text-emerald-600 truncate mr-2">{value}</span>
           <button 
             onClick={onClear} 
-            className="text-slate-400 hover:text-rose-400 p-0.5 rounded-md hover:bg-slate-800/80 transition-colors"
+            className="text-slate-500 hover:text-rose-600 p-0.5 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <X size={16} />
           </button>
@@ -67,8 +67,8 @@ export default function SearchInput({ value, onSelect, onClear, index, backendUr
         <div className="relative">
           <input
             type="text"
-            className="glass-input w-full text-sm pl-10 pr-10"
-            placeholder={`Search Company ${index}...`}
+            className="glass-input w-full text-sm pl-10 pr-10 bg-white"
+            placeholder="Search company or symbol..."
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -76,22 +76,22 @@ export default function SearchInput({ value, onSelect, onClear, index, backendUr
             }}
             onFocus={() => setShowDropdown(true)}
           />
-          <div className="absolute left-3.5 top-2.5 text-slate-500">
+          <div className="absolute left-3.5 top-2.5 text-slate-400">
             <Search size={16} />
           </div>
           {loading && (
-            <div className="absolute right-3.5 top-2.5 text-slate-500 animate-spin">
+            <div className="absolute right-3.5 top-2.5 text-slate-400 animate-spin">
               <Loader2 size={16} />
             </div>
           )}
           
           {showDropdown && results.length > 0 && (
-            <div className="absolute z-50 left-0 right-0 mt-2 bg-slate-950/95 backdrop-blur-xl border border-slate-800 rounded-xl max-h-60 overflow-y-auto shadow-2xl">
+            <div className="absolute z-50 left-0 right-0 mt-2 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-xl max-h-60 overflow-y-auto shadow-xl">
               {results.map((item) => (
                 <button
                   key={item.symbol}
                   onClick={() => handleSelectResult(item)}
-                  className="w-full text-left px-4 py-2.5 text-xs hover:bg-indigo-600/20 hover:text-indigo-200 border-b border-slate-900/50 last:border-b-0 truncate transition-colors"
+                  className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-100 hover:text-indigo-700 border-b border-slate-100 last:border-b-0 truncate transition-colors font-medium text-slate-700 cursor-pointer"
                 >
                   {item.label}
                 </button>

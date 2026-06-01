@@ -135,7 +135,7 @@ export default function App() {
               HYBRID STOCK PRICE PREDICTOR
             </h1>
             <p className="text-xs text-slate-500 mt-1 uppercase tracking-wider font-semibold">
-              Facebook Prophet macro-trends + Gradient Boosting residual volatility
+              Proprietary Macro-Trend Modeling + Quantitative Residual Volatility Engine
             </p>
           </div>
         </header>
@@ -164,7 +164,7 @@ export default function App() {
 
       <footer className="text-center text-[10px] text-slate-500 mt-12 pt-6 border-t border-slate-200">
         <p className="uppercase tracking-wider font-semibold">Institutional Grade Machine Learning Analytics Engine</p>
-        <p className="mt-1">Powered by React, Recharts, FastAPI, Facebook Prophet, and Scikit-Learn</p>
+        <p className="mt-1">Powered by React, Recharts, FastAPI, and Advanced Quantitative Modeling</p>
       </footer>
     </div>
   );

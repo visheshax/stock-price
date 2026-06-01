@@ -80,7 +80,7 @@ export default function StockColumn({
             <HelpCircle size={36} className="text-slate-400 mb-3 animate-pulse" />
             <p className="text-slate-600 font-semibold text-sm">Select Stock Symbol</p>
             <p className="text-xs text-slate-500 max-w-[200px] mt-1 leading-normal">
-              Fuzzy search a stock in the search bar above to begin predictions.
+              Search for a company or symbol in the search bar above to begin predictions.
             </p>
           </div>
         ) : (
@@ -172,7 +172,7 @@ export default function StockColumn({
                     <div className="bg-indigo-50/50 border border-indigo-200/60 rounded-xl p-3 text-[11px] mb-6 flex items-start gap-2.5 animate-fadeIn">
                       <MessageSquare size={16} className="text-indigo-600 shrink-0 mt-0.5" />
                       <div className="flex-1">
-                        <p className="font-bold text-indigo-900">🤖 AI Qualitative Context</p>
+                        <p className="font-bold text-indigo-900">💼 Analyst Context & Sentiment</p>
                         <p className="text-slate-700 mt-0.5 leading-relaxed">
                           Sentiment: <span className="text-slate-900 font-semibold">{sentiment >= 0 ? '+' : ''}{sentiment.toFixed(2)}</span> | 
                           Margin: <span className="text-slate-900 font-semibold">{data.qualitative_context.profit_margins}</span> | 
