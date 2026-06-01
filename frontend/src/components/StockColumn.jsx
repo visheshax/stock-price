@@ -209,6 +209,7 @@ export default function StockColumn({
                         {isUp ? '+' : ''}{data.projected_move_pct.toFixed(2)}%
                       </span>
                   </div>
+                  </div>
 
                   {/* Scenarios Panel */}
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 mb-6 animate-fadeIn">
