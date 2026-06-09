@@ -96,31 +96,16 @@ async def api_predict(request: PredictRequest):
         changepoint_scale = 0.05
         model_dict = train_hybrid_model(ticker, df, changepoint_scale, 'additive', 0.1, 3, benchmark_forecast)
         
-        # 5. Execute future predictions (applies the dynamic adaptive half-life decay)
-        predicted_price, forecast = predict_hybrid_future(model_dict, df, target_date, benchmark_forecast)
-        
-        # 6. Apply qualitative sentiment adjustment factor smoothly (automatic override)
+        # 5. Fetch qualitative context to get sentiment adjustment factor
         qual_context = get_qualitative_context(ticker)
         adj = qual_context.get('adjustment_factor', 1.0)
-        steps = len(forecast)
-        if steps > 0:
-            scaling_array = [1.0 + ((adj - 1.0) * (i / steps)) for i in range(steps)]
-            forecast['hybrid_yhat'] = forecast['hybrid_yhat'] * scaling_array
-            forecast['hybrid_yhat_upper'] = forecast['hybrid_yhat_upper'] * scaling_array
-            forecast['hybrid_yhat_lower'] = forecast['hybrid_yhat_lower'] * scaling_array
-            
-        # 7. Apply Autoregressive Anchor Smoothing to prevent Day-1 jumps/cliffs
+        
+        # 6. Execute predictions (applies smoothing & qualitative scaling internally)
+        predicted_price, forecast = predict_hybrid_future(model_dict, df, target_date, benchmark_forecast, qual_adjustment=adj)
+        
         last_row = df.iloc[-1]
         last_price = float(last_row['y'])
         last_date = last_row['ds'].strftime('%Y-%m-%d')
-        
-        first_pred = forecast['hybrid_yhat'].iloc[0]
-        gap = last_price - first_pred
-        decay_rate = 0.07 
-        decay_array = np.exp(-decay_rate * np.arange(len(forecast)))
-        forecast['hybrid_yhat'] = forecast['hybrid_yhat'] + (gap * decay_array)
-        forecast['hybrid_yhat_upper'] = forecast['hybrid_yhat_upper'] + (gap * decay_array)
-        forecast['hybrid_yhat_lower'] = forecast['hybrid_yhat_lower'] + (gap * decay_array)
         
         # Recalculate target date price after adjustments (handles past dates gracefully)
         target_dt = pd.to_datetime(target_date).tz_localize(None).normalize()

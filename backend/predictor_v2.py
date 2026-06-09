@@ -308,7 +308,7 @@ def train_hybrid_model(ticker: str, df: pd.DataFrame, changepoint_scale: float, 
         }
     }
 
-def predict_hybrid_future(model_dict: dict, df: pd.DataFrame, target_date: str, benchmark_forecast: pd.DataFrame = None):
+def predict_hybrid_future(model_dict: dict, df: pd.DataFrame, target_date: str, benchmark_forecast: pd.DataFrame = None, qual_adjustment: float = 1.0):
     """Predicts future prices using the trained hybrid model."""
     m_prophet = model_dict['prophet']
     m_xgb = model_dict['xgb']
@@ -375,12 +375,30 @@ def predict_hybrid_future(model_dict: dict, df: pd.DataFrame, target_date: str, 
     # Calculate best/worst scenarios dynamically based on historical residuals standard error
     t_days = np.arange(1, len(future_dates) + 1)
     residual_std = model_dict.get('residual_std', df['y'].std() * 0.1)
-    # Uncertainty scales with square root of time
-    uncertainty_corridor = 1.96 * residual_std * np.sqrt(t_days / 252.0)
+    # Uncertainty scales with square root of daily time steps
+    uncertainty_corridor = 1.96 * residual_std * np.sqrt(t_days)
     
     future_dates['hybrid_yhat_upper'] = future_dates['hybrid_yhat'] + uncertainty_corridor
     future_dates['hybrid_yhat_lower'] = future_dates['hybrid_yhat'] - uncertainty_corridor
     
+    # 3. Apply qualitative sentiment adjustment factor smoothly (moved to core library)
+    steps = len(future_dates)
+    if steps > 0 and qual_adjustment != 1.0:
+        scaling_array = [1.0 + ((qual_adjustment - 1.0) * (i / steps)) for i in range(steps)]
+        future_dates['hybrid_yhat'] = future_dates['hybrid_yhat'] * scaling_array
+        future_dates['hybrid_yhat_upper'] = future_dates['hybrid_yhat_upper'] * scaling_array
+        future_dates['hybrid_yhat_lower'] = future_dates['hybrid_yhat_lower'] * scaling_array
+
+    # 4. Apply Autoregressive Anchor Smoothing to prevent Day-1 jumps/cliffs (moved to core library)
+    last_price = float(df['y'].iloc[-1])
+    first_pred = future_dates['hybrid_yhat'].iloc[0]
+    gap = last_price - first_pred
+    decay_rate = 0.07 
+    decay_array = np.exp(-decay_rate * np.arange(len(future_dates)))
+    future_dates['hybrid_yhat'] = future_dates['hybrid_yhat'] + (gap * decay_array)
+    future_dates['hybrid_yhat_upper'] = future_dates['hybrid_yhat_upper'] + (gap * decay_array)
+    future_dates['hybrid_yhat_lower'] = future_dates['hybrid_yhat_lower'] + (gap * decay_array)
+
     # Financial Sanity Check: Stock prices cannot be negative
     future_dates['hybrid_yhat'] = future_dates['hybrid_yhat'].clip(lower=0.01)
     future_dates['hybrid_yhat_upper'] = future_dates['hybrid_yhat_upper'].clip(lower=0.01)
