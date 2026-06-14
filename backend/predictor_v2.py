@@ -12,21 +12,25 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
+GLOBAL_SESSION = None
+
 def get_session():
-    """Creates a requests session with a browser user-agent and retry backoff to bypass rate limits."""
-    session = requests.Session()
-    session.headers.update({
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
-    })
-    # Retry on common transient errors and HTTP 429 Rate Limiting
-    retries = Retry(
-        total=5,
-        backoff_factor=1,
-        status_forcelist=[429, 500, 502, 503, 504]
-    )
-    session.mount('https://', HTTPAdapter(max_retries=retries))
-    session.mount('http://', HTTPAdapter(max_retries=retries))
-    return session
+    """Returns a global reusable requests session with a browser user-agent and retry backoff to persist cookies/crumbs."""
+    global GLOBAL_SESSION
+    if GLOBAL_SESSION is None:
+        GLOBAL_SESSION = requests.Session()
+        GLOBAL_SESSION.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
+        })
+        # Retry on common transient errors and HTTP 429 Rate Limiting
+        retries = Retry(
+            total=5,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504]
+        )
+        GLOBAL_SESSION.mount('https://', HTTPAdapter(max_retries=retries))
+        GLOBAL_SESSION.mount('http://', HTTPAdapter(max_retries=retries))
+    return GLOBAL_SESSION
 
 def get_stock_data(ticker: str, history_years: int):
     session = get_session()

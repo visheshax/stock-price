@@ -186,7 +186,8 @@ async def api_predict(request: PredictRequest):
     except ValueError as ve:
         message = str(ve)
         status_code = 400
-        if "rate limit" in message.lower() or "too many requests" in message.lower():
+        # Catch variations of rate limiting keywords (e.g. rate limit, rate-limit, 429, etc.)
+        if any(x in message.lower() for x in ["rate limit", "rate-limit", "rate-limited", "too many requests", "429"]):
             status_code = 429
         raise HTTPException(status_code=status_code, detail=message)
     except Exception as e:
