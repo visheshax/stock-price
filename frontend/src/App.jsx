@@ -7,19 +7,19 @@ import { TrendingUp, Calendar } from "lucide-react";
 const BACKEND_URL = import.meta.env.VITE_API_URL || "https://stock-price-gm21.onrender.com";
 
 export default function App() {
-  const [tickers, setTickers] = useState(["", "", ""]);
-  const [labels, setLabels] = useState(["", "", ""]);
+  const [tickers, setTickers] = useState(["", ""]);
+  const [labels, setLabels] = useState(["", ""]);
   const [targetDates, setTargetDates] = useState(() => {
     // Default tomorrow formatted as YYYY-MM-DD for each slot
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toISOString().split("T")[0];
-    return [tomorrowStr, tomorrowStr, tomorrowStr];
+    return [tomorrowStr, tomorrowStr];
   });
   
-  const [loadings, setLoadings] = useState([false, false, false]);
-  const [results, setResults] = useState([null, null, null]);
-  const [errors, setErrors] = useState([null, null, null]);
+  const [loadings, setLoadings] = useState([false, false]);
+  const [results, setResults] = useState([null, null]);
+  const [errors, setErrors] = useState([null, null]);
 
   // Handle stock selection for a slot
   const handleSelectStock = (index, symbol, label) => {
@@ -148,8 +148,8 @@ export default function App() {
         </header>
 
         {/* Dynamic Decoupled Grid Results */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[0, 1, 2].map((idx) => (
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[0, 1].map((idx) => (
             <StockColumn
               key={idx}
               index={idx}
