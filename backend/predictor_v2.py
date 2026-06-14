@@ -8,10 +8,37 @@ from datetime import datetime, timedelta
 # Institutional Constants
 BENCHMARK_CHANGEPOINT_SCALE = 0.001  # Macro trajectory scale for benchmark indices
 
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
+
+def get_session():
+    """Creates a requests session with a browser user-agent and retry backoff to bypass rate limits."""
+    session = requests.Session()
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
+    })
+    # Retry on common transient errors and HTTP 429 Rate Limiting
+    retries = Retry(
+        total=5,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504]
+    )
+    session.mount('https://', HTTPAdapter(max_retries=retries))
+    session.mount('http://', HTTPAdapter(max_retries=retries))
+    return session
+
 def get_stock_data(ticker: str, history_years: int):
-    data = yf.download(ticker, period=f'{history_years}y', auto_adjust=True)
+    session = get_session()
+    try:
+        data = yf.download(ticker, period=f'{history_years}y', auto_adjust=True, session=session)
+    except Exception as e:
+        if "rate limit" in str(e).lower() or "too many requests" in str(e).lower():
+            raise ValueError(f"Yahoo Finance rate limit hit for {ticker}. Please try again shortly.")
+        raise e
+
     if data.empty:
-        raise ValueError(f"No data found for ticker {ticker}")
+        raise ValueError(f"No data found for ticker {ticker} (could be invalid or rate-limited).")
         
     df = data.reset_index()
     if isinstance(df.columns, pd.MultiIndex):
@@ -83,7 +110,8 @@ def get_qualitative_context(ticker: str):
     }
     
     try:
-        t = yf.Ticker(ticker)
+        session = get_session()
+        t = yf.Ticker(ticker, session=session)
         
         # 1. Fetch Fundamentals
         info = t.info
@@ -399,10 +427,10 @@ def predict_hybrid_future(model_dict: dict, df: pd.DataFrame, target_date: str, 
     future_dates['hybrid_yhat_upper'] = future_dates['hybrid_yhat_upper'] + (gap * decay_array)
     future_dates['hybrid_yhat_lower'] = future_dates['hybrid_yhat_lower'] + (gap * decay_array)
 
-    # Financial Sanity Check: Stock prices cannot be negative
+    # Financial Sanity Check: Stock prices cannot be negative or fall below structural floors
     future_dates['hybrid_yhat'] = future_dates['hybrid_yhat'].clip(lower=0.01)
     future_dates['hybrid_yhat_upper'] = future_dates['hybrid_yhat_upper'].clip(lower=0.01)
-    future_dates['hybrid_yhat_lower'] = future_dates['hybrid_yhat_lower'].clip(lower=0.01)
+    future_dates['hybrid_yhat_lower'] = future_dates['hybrid_yhat_lower'].clip(lower=floor_val)
     
     prediction_row = future_dates[future_dates['ds'] == target_dt]
     if not prediction_row.empty:

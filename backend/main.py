@@ -92,8 +92,8 @@ async def api_predict(request: PredictRequest):
         # 3. Train benchmark model first (using cached/dynamic scale 0.001)
         benchmark_forecast = fetch_cached_benchmark(benchmark_ticker, history_years)
         
-        # 4. Train individual hybrid model (Moderately flexible 0.05 changepoint scale)
-        changepoint_scale = 0.05
+        # 4. Train individual hybrid model (Moderately flexible 0.02 changepoint scale)
+        changepoint_scale = 0.02
         model_dict = train_hybrid_model(ticker, df, changepoint_scale, 'additive', 0.1, 3, benchmark_forecast)
         
         # 5. Fetch qualitative context to get sentiment adjustment factor
@@ -183,6 +183,12 @@ async def api_predict(request: PredictRequest):
             "chart_data": chart_data
         }
         
+    except ValueError as ve:
+        message = str(ve)
+        status_code = 400
+        if "rate limit" in message.lower() or "too many requests" in message.lower():
+            status_code = 429
+        raise HTTPException(status_code=status_code, detail=message)
     except Exception as e:
         import traceback
         print(traceback.format_exc())
