@@ -97,8 +97,15 @@ export default function App() {
       });
       
       if (!response.ok) {
-        const errMsg = await response.text();
-        throw new Error(errMsg || "Internal server error");
+        let errMsg = "Internal server error";
+        try {
+          const errJson = await response.json();
+          errMsg = errJson.detail || errMsg;
+        } catch (_) {
+          const text = await response.text();
+          errMsg = text || errMsg;
+        }
+        throw new Error(errMsg);
       }
       
       const data = await response.json();
